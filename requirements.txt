@@ -1,0 +1,7 @@
+torch
+requests
+langdetect
+TTS
+yt-dlp
+openai-whisper
+ollama
