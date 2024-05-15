@@ -41,13 +41,13 @@ def timecode_to_seconds(timecode):
     return int(hours * 3600 + minutes * 60 + seconds)
 
 
-def create_youtube_hyperlink(caption, video_id, format):
+def create_youtube_hyperlink(caption, link, format):
     """
     Creates a hyperlink to a YouTube video based on the given caption, video ID, and format.
 
     Args:
         caption (Caption): The caption object containing the start, end, and text of the caption.
-        video_id (str): The ID of the YouTube video.
+        link (str): The link of the YouTube video.
         format (str): The format of the hyperlink. Supported formats: 'word'.
 
     Returns:
@@ -60,7 +60,7 @@ def create_youtube_hyperlink(caption, video_id, format):
         # For Word, we return the URL and text separately to create a hyperlink later
         return (
             text,
-            f"https://www.youtube.com/watch?v={video_id}&t={total_seconds}s",
+            f"{link}&t={total_seconds}s",
             start,
             end,
         )
@@ -148,13 +148,13 @@ def parse_time(time_str):
         return datetime.strptime(time_str, "%M:%S.%f")
 
 
-def generate_content(vtt_file, video_id, format):
+def generate_content(vtt_file, link, format):
     """
     Generate content from a VTT file.
 
     Args:
         vtt_file (str): The path to the VTT file.
-        video_id (str): The ID of the video.
+        link (str): The link of the video.
         format (str): The desired format of the content.
 
     Returns:
@@ -166,19 +166,19 @@ def generate_content(vtt_file, video_id, format):
 
     content = []
     for caption in captions:
-        hyperlink = create_youtube_hyperlink(caption, video_id, format)
+        hyperlink = create_youtube_hyperlink(caption, link, format)
         content.append(hyperlink)  # Store the text and hyperlink as a tuple
     return content
 
 
-def vtt_to_file(vtt_file, output_file, video_id, format):
+def vtt_to_file(vtt_file, output_file, link, format):
     """
     Convert a VTT file to a specified format and write the content to an output file.
 
     Parameters:
     vtt_file (str): The path to the VTT file.
     output_file (str): The path to the output file.
-    video_id (str): The ID of the video.
+    link (str): The link of the video.
     format (str): The desired format of the output file. Currently supports 'word'.
 
     Raises:
@@ -188,7 +188,7 @@ def vtt_to_file(vtt_file, output_file, video_id, format):
     None
     """
     # Generate the content
-    content = generate_content(vtt_file, video_id, format)
+    content = generate_content(vtt_file, link, format)
 
     # Write the content to the output file
     if format == "word":
