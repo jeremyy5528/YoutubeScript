@@ -1,22 +1,30 @@
-import re
-from docx import Document
+from datetime import datetime, timedelta
+import docx
 from docx import Document
 from docx.shared import Pt
-from docx.oxml.ns import nsdecls
+from docx.oxml.ns import nsdecls,RGBColor
 from docx.oxml import parse_xml
+import re
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.colors import black,blue
 import webvtt
-from docx.shared import RGBColor
-from docx.oxml.ns import nsdecls
-from docx.oxml import parse_xml
-import docx
-from datetime import datetime, timedelta
 
 
 def timecode_to_seconds(timecode):
+    """
+    Converts a timecode string in the format 'HH:MM:SS' or 'MM:SS' or 'SS' to seconds.
+
+    Args:
+        timecode (str): The timecode string to convert.
+
+    Returns:
+        int: The equivalent number of seconds.
+
+    Raises:
+        ValueError: If the timecode format is invalid.
+    """
     parts = timecode.split(':')
     parts = [float(part) for part in parts]
     if len(parts) == 3:
@@ -33,15 +41,35 @@ def timecode_to_seconds(timecode):
     return int(hours * 3600 + minutes * 60 + seconds)
 
 def create_youtube_hyperlink(caption, video_id, format):
+    """
+    Creates a hyperlink to a YouTube video based on the given caption, video ID, and format.
+
+    Args:
+        caption (Caption): The caption object containing the start, end, and text of the caption.
+        video_id (str): The ID of the YouTube video.
+        format (str): The format of the hyperlink. Supported formats: 'word'.
+
+    Returns:
+        tuple: A tuple containing the hyperlink text, URL, start time, and end time.
+
+    """
     start, end, text = caption.start, caption.end, caption.text
     total_seconds = timecode_to_seconds(start)
     if format == 'word':
         # For Word, we return the URL and text separately to create a hyperlink later
-        return text, f'https://www.youtube.com/watch?v={video_id}&t={total_seconds}s' ,start,end
+        return text, f'https://www.youtube.com/watch?v={video_id}&t={total_seconds}s', start, end
 
 def add_hyperlink(run, url, text):
     """
-    Add a hyperlink to a run.
+    Adds a hyperlink to a run in a Word document.
+
+    Parameters:
+    - run (docx.text.run.Run): The run to add the hyperlink to.
+    - url (str): The URL of the hyperlink.
+    - text (str): The text to display for the hyperlink.
+
+    Returns:
+    - hyperlink (docx.oxml.shared.OxmlElement): The created hyperlink element.
     """
     # Clear the text in the original run
     run.text = ''
@@ -58,6 +86,18 @@ def add_hyperlink(run, url, text):
     return hyperlink
 
 def write_word_file(content, output_file, minutes_per_paragraph=0.5):
+    """
+    Writes the content to a Word document with specified formatting.
+
+    Args:
+        content (list): A list of tuples containing the text, URL, start time, and end time.
+        output_file (str): The path and filename of the output Word document.
+        minutes_per_paragraph (float, optional): The maximum number of minutes per paragraph. Defaults to 0.5.
+
+    Returns:
+        None
+    """
+
     doc = Document()
     para = doc.add_paragraph()  # Create a paragraph outside the loop
     start_time = parse_time(content[0][2])  # Parse the start time
@@ -73,24 +113,65 @@ def write_word_file(content, output_file, minutes_per_paragraph=0.5):
     doc.save(output_file)
     print(f'Word file {output_file} created successfully')
 
+from datetime import datetime
+
 def parse_time(time_str):
+    """
+    Parses a time string and returns a datetime object.
+
+    Args:
+        time_str (str): The time string to parse. It should be in the format "HH:MM:SS.sss" or "MM:SS.sss".
+
+    Returns:
+        datetime: A datetime object representing the parsed time.
+
+    Raises:
+        ValueError: If the time string is not in a valid format.
+
+    """
     # Handle two types of time formats: "HH:MM:SS.sss" and "MM:SS.sss"
     if len(time_str.split(':')) == 3:
         return datetime.strptime(time_str, "%H:%M:%S.%f")
     else:
         return datetime.strptime(time_str, "%M:%S.%f")
 def generate_content(vtt_file, video_id, format):
+    """
+    Generate content from a VTT file.
+
+    Args:
+        vtt_file (str): The path to the VTT file.
+        video_id (str): The ID of the video.
+        format (str): The desired format of the content.
+
+    Returns:
+        list: A list of tuples containing the generated content. Each tuple consists of the text and hyperlink.
+
+    """
     # Read the VTT file
     captions = webvtt.read(vtt_file)
 
     content = []
     for caption in captions:
-        
-        hyperlink = create_youtube_hyperlink(caption,video_id, format)
+        hyperlink = create_youtube_hyperlink(caption, video_id, format)
         content.append(hyperlink)  # Store the text and hyperlink as a tuple
     return content
 
 def vtt_to_file(vtt_file, output_file, video_id, format):
+    """
+    Convert a VTT file to a specified format and write the content to an output file.
+
+    Parameters:
+    vtt_file (str): The path to the VTT file.
+    output_file (str): The path to the output file.
+    video_id (str): The ID of the video.
+    format (str): The desired format of the output file. Currently supports 'word'.
+
+    Raises:
+    ValueError: If an invalid format is provided.
+
+    Returns:
+    None
+    """
     # Generate the content
     content = generate_content(vtt_file, video_id, format)
 
