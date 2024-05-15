@@ -219,7 +219,7 @@ def summary_video_from_link(clean_vtt, logger, args, link, get_video_lang):
     logger.info(f"subtitle is stored:{filename_without_extension}")
     # llm
     vtt_file = f"{args.text_output_dir}{filename_without_extension}.vtt"
-    vtt_to_file(vtt_file=vtt_file,output_file=f"{args.text_output_dir}{filename_without_extension}",video_id = link)
+    vtt_to_file(vtt_file=vtt_file,output_file=f"{args.text_output_dir}{filename_without_extension}",video_id = link,format = 'word')
     if args.timestamp_content == "True":
         with open(vtt_file, "r", encoding="utf-8") as fp:
             file_content = fp.read()

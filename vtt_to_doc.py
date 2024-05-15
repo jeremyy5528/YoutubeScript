@@ -48,7 +48,7 @@ def create_youtube_hyperlink(caption, link, format):
     Args:
         caption (Caption): The caption object containing the start, end, and text of the caption.
         link (str): The link of the YouTube video.
-        format (str): The format of the hyperlink. Supported formats: 'word'.
+        format (str): The format of the hyperlink. Supported formats: 'docx'.
 
     Returns:
         tuple: A tuple containing the hyperlink text, URL, start time, and end time.
@@ -56,7 +56,7 @@ def create_youtube_hyperlink(caption, link, format):
     """
     start, end, text = caption.start, caption.end, caption.text
     total_seconds = timecode_to_seconds(start)
-    if format == "word":
+    if format == "docx":
         # For Word, we return the URL and text separately to create a hyperlink later
         return (
             text,
@@ -191,7 +191,7 @@ def vtt_to_file(vtt_file, output_file, link, format):
     content = generate_content(vtt_file, link, format)
 
     # Write the content to the output file
-    if format == "word":
+    if format == "docx":
         write_word_file(content, output_file)
 
     else:
