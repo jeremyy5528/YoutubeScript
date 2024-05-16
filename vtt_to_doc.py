@@ -1,8 +1,8 @@
 from datetime import datetime, timedelta
 import docx
 from docx import Document
-from docx.shared import Pt
-from docx.oxml.ns import nsdecls, RGBColor
+from docx.shared import Pt, RGBColor
+from docx.oxml.ns import nsdecls
 from docx.oxml import parse_xml
 import re
 from reportlab.lib.pagesizes import letter
@@ -118,11 +118,18 @@ def write_word_file(content, output_file, minutes_per_paragraph=0.5):
         current_time = parse_time(start)  # Parse the current start time
         if (current_time - start_time) >= timedelta(minutes=minutes_per_paragraph):
             para.add_run("\n")  # Insert a paragraph break
-            para.add_run(f"({start} - {end}) \n")
+            start_code = start_time.time()
+            start_code = start_code.strftime('%H:%M:%S')
+            end_code = parse_time(previous_end)
+            end_code = end_code.strftime('%H:%M:%S')
+            para.add_run(f"({start_code} - {end_code}) \n")
             para.add_run("\n\n")  # Insert a paragraph break
             start_time = current_time
         run = para.add_run(text + " ")
         add_hyperlink(run, url, text)
+        previous_end = end
+    para.add_run("\n")  # Insert a paragraph break
+    para.add_run(f"({start_time.time().strftime('%H:%M:%S')} - {parse_time(content[-1][3]).strftime('%H:%M:%S')}) \n")
     doc.save(output_file)
     print(f"Word file {output_file} created successfully")
 

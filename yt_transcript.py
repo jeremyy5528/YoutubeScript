@@ -219,7 +219,7 @@ def summary_video_from_link(clean_vtt, logger, args, link, get_video_lang):
     logger.info(f"subtitle is stored:{filename_without_extension}")
     # llm
     vtt_file = f"{args.text_output_dir}{filename_without_extension}.vtt"
-    vtt_to_file(vtt_file=vtt_file,output_file=f"{args.text_output_dir}{filename_without_extension}",video_id = link,format = 'word')
+    vtt_to_file(vtt_file=vtt_file,output_file=f"{args.integrate_text_output_dir}{filename_without_extension}.docx",link = link,format = 'docx')
     if args.timestamp_content == "True":
         with open(vtt_file, "r", encoding="utf-8") as fp:
             file_content = fp.read()
@@ -356,20 +356,20 @@ def integrate_text_format(video_title, args, vtt_file, llm_summary):
         + "#" * 16
         + "\n"
     )
-    doc = Document(filename)
-    # 創建一個新的段落並將其插入到文件的開頭
-    para = doc.paragraphs.insert(0, integrate_text)
-    # 儲存文件
-    doc.save(filename)
+    file_name = f"{args.integrate_text_output_dir}{video_title}.docx"
+    doc = Document(file_name)
+
+    # 在第一个段落之前插入一个新的段落
+    new_para = doc.paragraphs[0].insert_paragraph_before(integrate_text)
+
+    # 保存文件
+    doc.save(file_name)
 
     # 將合併後的內容寫入一個新的文件
     with open(
         f"{args.integrate_text_output_dir}{video_title}.txt", "w", encoding="utf-8"
     ) as file:
         file.write(integrate_text)
-
-        # 開啟文件
-
 
 # Set up argument parser
 
