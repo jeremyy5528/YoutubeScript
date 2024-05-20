@@ -61,17 +61,29 @@ the format is like : http://localhost:181/public.php?op=rss&id=-3&is_cat=0&q=&ke
 
 # usage 
 the script support a cli-interface:
+
 ('--link', type=str, help='The link to the youtube video,or a ttrss link')
+
 ('--temp', type=str, default="summary the following content", help='template to llm, in en or zh')
+
 ('--language', type=str, default= "en", help='language of output')
+
 ('--whisper_model_size', type=str, default='medium', help='model to use for whisper')
+
 ('--model_name', type=str, default="auto", help='llm model,in ollama format:https://ollama.com/library')
+
 ('--timestamp_content', type=str, default="False", help='use content contains timestamp in LLM inference')
+
 ('--output_dir', type=str,default= script_dir, help='output directory')
+
 ('--audiopath', type=str, default='./audio/', help='The path to the audio file to save to')
+
 ('--text_output_dir', type=str, default='./text/', help='The path to the text file to save to')
+
 ('--integrate_text_output_dir', default="./integrate_text/", type=str, help='integrate_text_output_dir')
+
 ('--post_text_output_dir', default="./text_llm_processed/", type=str, help='post_text_output_dir')
+
 ('--post_audio_output_dir', default="./audio_llm_processed/", type=str, help='post_audio_output_dir')
 
 
