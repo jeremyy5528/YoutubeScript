@@ -54,7 +54,26 @@ def create_youtube_hyperlink(caption, link, format):
         tuple: A tuple containing the hyperlink text, URL, start time, and end time.
 
     """
+    def remove_spaces_from_text(caption):
+        """
+        Remove &nbsp; and similar space markers from a caption.
+    
+        Args:
+            caption (str): The caption from which to remove the space markers.
+    
+        Returns:
+            str: The caption with the space markers removed.
+        """
+        # Replace &nbsp; with a space
+        caption = caption.replace('&nbsp;', ' ')
+        
+        # Replace other HTML space entities
+        caption = caption.replace('&ensp;', ' ')
+        caption = caption.replace('&emsp;', ' ')
+        caption = caption.replace('&thinsp;', ' ')
+        return caption
     start, end, text = caption.start, caption.end, caption.text
+    text = remove_spaces_from_text(text)
     total_seconds = timecode_to_seconds(start)
     if format == "docx":
         # For Word, we return the URL and text separately to create a hyperlink later

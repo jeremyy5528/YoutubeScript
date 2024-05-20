@@ -233,7 +233,7 @@ def summary_video_from_link(clean_vtt, logger, args, link, get_video_lang):
     else:
         model_name = args.model_name
 
-    chunks = chunk_string(file_content, 2000)
+    chunks = chunk_string(file_content, 7000)
     responses = []
 
     logger.info(f"LLM summarizing")
@@ -247,14 +247,20 @@ def summary_video_from_link(clean_vtt, logger, args, link, get_video_lang):
         response = requests.post("http://localhost:11434/api/generate", json=body)
         responses.append(response.json()["response"])
 
-    combined_responses = " ".join(responses)
+    combined_responses = "\n-------------- \n".join(responses)
 
     body = {
         "model": model_name,
-        "prompt": f"用以下語言執行任務:{args.language}. {args.prompt} 任務: {combined_responses} .用以下語言執行任務: {args.language}. {args.prompt} ",
-        "system": f"{args.prompt} 用以下語言執行任務:{args.language}. ",
+        "prompt": f"用以下語言執行任務:{args.language}. 請重新組織所有要點組成一篇組織嚴謹、文筆流暢的文章: {combined_responses} .用以下語言執行任務: {args.language}.  請重新組織所有要點組成一篇組織嚴謹、文筆流暢的文章",
+        "system": f"請重新組織所有要點組成一篇組織嚴謹、文筆流暢的文章，用以下語言執行任務:{args.language}. ",
         "stream": False,
     }
+    # body = {
+    #     "model": model_name,
+    #     "prompt": f"用以下語言執行任務:{args.language}. {args.prompt} 任務: {combined_responses} .用以下語言執行任務: {args.language}. {args.prompt} ",
+    #     "system": f"{args.prompt} 用以下語言執行任務:{args.language}. ",
+    #     "stream": False,
+    # }
 
     integrate_response = requests.post("http://localhost:11434/api/generate", json=body)
     integrate_response_text = integrate_response.json()["response"]
@@ -266,6 +272,7 @@ def summary_video_from_link(clean_vtt, logger, args, link, get_video_lang):
     with open(post_text_dir, "w", encoding="utf-8") as f:
         f.write(response_text)
 
+    integrate_text_format(filename_without_extension, args, text_file, post_text_dir)
     logger.info(f"LLM response character count: {len(response_text)}")
     logger.info(f"LLM response is stored: {post_text_dir}")
 
@@ -291,8 +298,8 @@ def summary_video_from_link(clean_vtt, logger, args, link, get_video_lang):
     post_audio_dir = (
         f"{os.path.join(args.post_audio_output_dir, filename_without_extension)}.wav"
     )
-    # Split the response_text into chunks of 350 characters
-    chunks = chunk_string_by_words(response_text, 200)
+    # Split the response_text into chunks of 80 characters
+    chunks = chunk_string_by_words(response_text, 80)
 
     # Generate the audio files
     for i, chunk in enumerate(tqdm(chunks)):
@@ -317,7 +324,6 @@ def summary_video_from_link(clean_vtt, logger, args, link, get_video_lang):
         os.remove(file)
     logger.info(f"TTS output language is: {language}")
     logger.info(f"TTS output is stored: {post_audio_dir}")
-    integrate_text_format(filename_without_extension, args, text_file, post_text_dir)
 
 
 def chunk_string(string, length):
@@ -361,15 +367,8 @@ def integrate_text_format(video_title, args, vtt_file, llm_summary):
 
     # 在第一个段落之前插入一个新的段落
     new_para = doc.paragraphs[0].insert_paragraph_before(integrate_text)
-
     # 保存文件
     doc.save(file_name)
-
-    # 將合併後的內容寫入一個新的文件
-    with open(
-        f"{args.integrate_text_output_dir}{video_title}.txt", "w", encoding="utf-8"
-    ) as file:
-        file.write(integrate_text)
 
 # Set up argument parser
 
