@@ -1,7 +1,7 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta,timezone
 import docx
 from docx import Document
-from docx.shared import Pt, RGBColor
+from docx.shared import Pt, RGBColor ,Cm
 from docx.oxml.ns import nsdecls
 from docx.oxml import parse_xml
 import re
@@ -10,8 +10,10 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.colors import black, blue
 import webvtt
-
-
+from SceneExtractor import detect_scene_changes
+import cv2
+import logging
+logger = logging.getLogger(__name__)
 def timecode_to_seconds(timecode):
     """
     Converts a timecode string in the format 'HH:MM:SS' or 'MM:SS' or 'SS' to seconds.
@@ -117,25 +119,106 @@ def add_hyperlink(run, url, text):
     return hyperlink
 
 
-def write_word_file(content, output_file, minutes_per_paragraph=0.5):
+def should_execute_action(video_path, content, minutes_per_paragraph=0.5, alpha=1.0):
     """
-    Writes the content to a Word document with specified formatting.
+    Determines whether an action should be executed based on the time difference or the scene changes.
+
+    Args:
+        video_path (str): The path of the video file.
+        content (list): A list of tuples containing the text, URL, start time, and end time.
+        mode (str, optional): The mode of operation. 'time' for time difference, 'scene' for scene changes. Defaults to 'time'.
+        minutes_per_paragraph (float, optional): The maximum number of minutes per paragraph. Defaults to 0.5.
+        alpha (float, optional): The sensitivity of the scene change detection. Defaults to 1.0.
+
+    Returns:
+        list: A list of booleans indicating whether an action should be executed for each item in the content.
+    """
+    should_execute_scene = determine_execution_from_scene(video_path, content, alpha)
+    should_execute_time = determine_execution_from_time(content, minutes_per_paragraph)
+ 
+    should_execute = [a or b for a, b in zip(should_execute_scene, should_execute_time)]
+    return should_execute
+
+def determine_execution_from_scene(video_path, content, alpha):
+    def align_timestamp(timestamp):
+        return datetime.fromtimestamp(timestamp)- timedelta(hours=8)
+    should_execute = []
+    scene_changes = detect_scene_changes(video_path, alpha)
+    
+    logger.debug(f"scene_changes:{scene_changes}")
+    
+    i = 0
+    for _, _, start, _ in content:
+        current_time = parse_time(start)  # Parse the current start time
+        if (current_time-align_timestamp(scene_changes[-1])) >= timedelta(minutes=0) :
+            should_execute.append(False)
+        if i == len(scene_changes):
+            should_execute.append(False)
+            continue
+        if (current_time-align_timestamp(scene_changes[i]))  >= timedelta(minutes=0) :
+            i = i+1
+            should_execute.append(True)
+            
+        else:
+            should_execute.append(False)
+    return should_execute
+
+def determine_execution_from_time(content, minutes_per_paragraph):
+    should_execute = []
+    start_time = parse_time(content[0][2])  # Parse the start time
+    for _, _, start, _ in content:
+        current_time = parse_time(start)  # Parse the current start time
+        if (current_time - start_time) >= timedelta(minutes=minutes_per_paragraph):
+            should_execute.append(True)
+            start_time = current_time
+        else:
+            should_execute.append(False)
+    return should_execute
+def add_frame_to_docx(cap, timestamp, para):
+    # Convert timestamp to frame number
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    timestamp_seconds = timestamp.replace(tzinfo=timezone.utc).timestamp()
+    frame_number = int(fps * timestamp_seconds)
+    # Set the current frame position
+    cap.set(cv2.CAP_PROP_POS_FRAMES, frame_number)
+
+    # Read the frame
+    ret, frame = cap.read()
+    if not ret:
+        logger.debug("Failed to retrieve frame")
+        return
+
+    # Save the frame to a file
+    frame_file = "frame.png"
+
+    cv2.imwrite(frame_file, frame)
+
+    # Add the frame to the docx file
+    run = para.add_run('\n\n')
+    run.add_picture(frame_file, width=Cm(15))
+    return para  # Return the original Paragraph object
+    
+
+
+def write_docx(content, should_execute,picture_execute, output_file,video_path):
+    """
+    Executes an action (writing to a Word document) for each item in the content where should_execute is True.
 
     Args:
         content (list): A list of tuples containing the text, URL, start time, and end time.
+        should_execute (list): A list of booleans indicating whether an action should be executed for each item in the content.
         output_file (str): The path and filename of the output Word document.
-        minutes_per_paragraph (float, optional): The maximum number of minutes per paragraph. Defaults to 0.5.
 
     Returns:
         None
     """
-
+    cap = cv2.VideoCapture(video_path)
     doc = Document()
     para = doc.add_paragraph()  # Create a paragraph outside the loop
     start_time = parse_time(content[0][2])  # Parse the start time
-    for text, url, start, end in content:
-        current_time = parse_time(start)  # Parse the current start time
-        if (current_time - start_time) >= timedelta(minutes=minutes_per_paragraph):
+    for (text, url, start, end), execute ,pic_execute in zip(content, should_execute,picture_execute):
+        current_time = parse_time(start)
+        if execute :
             para.add_run("\n")  # Insert a paragraph break
             start_code = start_time.time()
             start_code = start_code.strftime('%H:%M:%S')
@@ -144,13 +227,17 @@ def write_word_file(content, output_file, minutes_per_paragraph=0.5):
             para.add_run(f"({start_code} - {end_code}) \n")
             para.add_run("\n\n")  # Insert a paragraph break
             start_time = current_time
+        if pic_execute:
+            para = add_frame_to_docx(cap, current_time, para)
         run = para.add_run(text + " ")
         add_hyperlink(run, url, text)
+   
         previous_end = end
     para.add_run("\n")  # Insert a paragraph break
     para.add_run(f"({start_time.time().strftime('%H:%M:%S')} - {parse_time(content[-1][3]).strftime('%H:%M:%S')}) \n")
     doc.save(output_file)
-    print(f"Word file {output_file} created successfully")
+    cap.release()
+    logger.info(f"Word file {output_file} created successfully")
 
 
 def parse_time(time_str):
@@ -169,9 +256,11 @@ def parse_time(time_str):
     """
     # Handle two types of time formats: "HH:MM:SS.sss" and "MM:SS.sss"
     if len(time_str.split(":")) == 3:
-        return datetime.strptime(time_str, "%H:%M:%S.%f")
+        time = datetime.strptime(time_str, "%H:%M:%S.%f")
     else:
-        return datetime.strptime(time_str, "%M:%S.%f")
+        time = datetime.strptime(time_str, "%M:%S.%f")
+    time = time.replace(year=1970)
+    return time  
 
 
 def generate_content(vtt_file, link, format):
@@ -197,7 +286,7 @@ def generate_content(vtt_file, link, format):
     return content
 
 
-def vtt_to_file(vtt_file, output_file, link, format):
+def vtt_to_file(vtt_file, output_file, link, video_path,format):
     """
     Convert a VTT file to a specified format and write the content to an output file.
 
@@ -218,7 +307,14 @@ def vtt_to_file(vtt_file, output_file, link, format):
 
     # Write the content to the output file
     if format == "docx":
-        write_word_file(content, output_file)
+        # should_execute = should_execute_action(video_path, content, mode='scene', minutes_per_paragraph=0.5, alpha=1.0)
+        should_execute_scene = determine_execution_from_scene(video_path, content, alpha=1)
+        should_execute_time = determine_execution_from_time(content, minutes_per_paragraph=0.5)
+        picture_execute = should_execute_scene
+   
+        should_execute = [a or b for a, b in zip(should_execute_scene, should_execute_time)]
+        write_docx(content, should_execute,picture_execute, output_file,video_path=video_path)
+        
 
     else:
         raise ValueError("Invalid format")

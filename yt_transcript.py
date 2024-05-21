@@ -69,12 +69,12 @@ def playlist_urls(url):
     if "playlist?list=" not in url:
         urls = url
         return urls  # Single video
-    response = req.get(url)  # Get the webpage source code
+    response = requests.get(url)  # Get the webpage source code
     if response.status_code != 200:
         logger.info("Request failed")
         return
     urls = []
-    response = req.get(url)
+    response = requests.get(url)
     # Store the HTML content in a variable
     html_content = response.text
 
@@ -188,6 +188,31 @@ def summary_video_from_link(clean_vtt, logger, args, link, get_video_lang):
             chunks = [string[i : i + length] for i in range(0, len(string), length)]
 
         return chunks
+    
+    def find_video_file(directory, filename_without_extension):
+        """
+        Finds the video file in the specified directory with the specified filename (without extension).
+    
+        Args:
+            directory (str): The directory where the files are located.
+            filename_without_extension (str): The filename without extension.
+    
+        Returns:
+            str: The filename with extension of the video file, or None if no video file is found.
+        """
+        # Define the video file extensions
+        video_extensions = [".webm", ".mp4", ".avi", ".mov", ".mkv", ".flv", ".wmv"]
+    
+        
+        # Search for the video file
+        all_files = glob.glob(os.path.join(directory, f"*{filename_without_extension}*"))
+        
+        for file in all_files:
+            filename, extension = os.path.splitext(file)
+            if extension in video_extensions and not re.search(r'\.f\d{3}', filename):
+                # Return the video file found
+                return glob.glob(os.path.join(directory, os.path.basename(file)))[0]
+            
 
     logger.info(f"processing {link}")
     get_dl_audio_path_cmd = f'yt-dlp {link} --get-filename -o "{args.audiopath}%(title)s.%(ext)s" -S "+size,+br" --extract-audio --audio-format mp3 --no-keep-video --quiet'
@@ -201,25 +226,27 @@ def summary_video_from_link(clean_vtt, logger, args, link, get_video_lang):
     video_language = get_video_lang(logger, args, link, filename_without_extension)
     logger.info(f"video language:{video_language}")
 
-    download_video_cmd = f'yt-dlp {link} -o "{args.audiopath}%(title)s.%(ext)s" --extract-audio --audio-format mp3 --no-keep-video --write-subs --sub-format vtt --sub-langs {video_language}'
+    download_video_cmd = f'yt-dlp {link} -o "{args.audiopath}%(title)s.%(ext)s" --extract-audio --audio-format mp3 --keep-video  --write-subs  --sub-format vtt --sub-langs {video_language}'
     subprocess.run(download_video_cmd, shell=True)
+    video_path = find_video_file(directory = args.audiopath , filename_without_extension=filename_without_extension)
+  
     # Move subtitle_file to the text file ,if subtitle_file is exist
-    subtitle_file = f"{args.audiopath}{filename_without_extension}.{video_language}.vtt"
-    if os.path.exists(subtitle_file):
+    vtt_file = f"{args.audiopath}{filename_without_extension}.{video_language}.vtt"
+    if os.path.exists(vtt_file):
         os.rename(
-            subtitle_file, f"{args.text_output_dir}{filename_without_extension}.vtt"
+            vtt_file, f"{args.text_output_dir}{filename_without_extension}.vtt"
         )
 
-    text_file = f"{args.text_output_dir}{filename_without_extension}.vtt"
-    if not os.path.exists(text_file):
+    vtt_file = f"{args.text_output_dir}{filename_without_extension}.vtt"
+    if not os.path.exists(vtt_file):
         # Run whisper
         whisper_cmd = f'whisper "{args.audiopath}{filename_without_extension}.mp3" --model {args.whisper_model_size} --output_format vtt --output_dir {args.text_output_dir} --verbose False'
         subprocess.run(whisper_cmd, shell=True)
 
+    
     logger.info(f"subtitle is stored:{filename_without_extension}")
     # llm
-    vtt_file = f"{args.text_output_dir}{filename_without_extension}.vtt"
-    vtt_to_file(vtt_file=vtt_file,output_file=f"{args.integrate_text_output_dir}{filename_without_extension}.docx",link = link,format = 'docx')
+    vtt_to_file(vtt_file=vtt_file,output_file=f"{args.integrate_text_output_dir}{filename_without_extension}.docx",link = link,video_path = video_path,format = 'docx')
     if args.timestamp_content == "True":
         with open(vtt_file, "r", encoding="utf-8") as fp:
             file_content = fp.read()
@@ -272,7 +299,7 @@ def summary_video_from_link(clean_vtt, logger, args, link, get_video_lang):
     with open(post_text_dir, "w", encoding="utf-8") as f:
         f.write(response_text)
 
-    integrate_text_format(filename_without_extension, args, text_file, post_text_dir)
+    integrate_text_format(filename_without_extension, args, vtt_file, post_text_dir)
     logger.info(f"LLM response character count: {len(response_text)}")
     logger.info(f"LLM response is stored: {post_text_dir}")
 
@@ -363,6 +390,7 @@ def integrate_text_format(video_title, args, vtt_file, llm_summary):
         + "\n"
     )
     file_name = f"{args.integrate_text_output_dir}{video_title}.docx"
+    
     doc = Document(file_name)
 
     # 在第一个段落之前插入一个新的段落
