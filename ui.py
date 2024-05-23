@@ -3,7 +3,7 @@ from tkinter import filedialog
 from yt_transcript import main
 import tkinter.messagebox as messagebox
 import threading
-
+import os
 
 class Args:
     def __init__(
