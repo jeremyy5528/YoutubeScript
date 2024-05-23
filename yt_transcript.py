@@ -134,6 +134,29 @@ def is_localhost(url):
     return parsed_url.netloc.startswith("localhost:")
 
 
+def chunk_string_by_words(string, length):
+    # Calculate the percentage of spaces
+    space_percentage = string.count(" ") / len(string)
+
+    # Calculate the uniformity of spaces
+    space_positions = [i for i, char in enumerate(string) if char == " "]
+    space_differences = [
+        j - i for i, j in zip(space_positions[:-1], space_positions[1:])
+    ]
+    uniformity = (
+        max(space_differences) - min(space_differences) if space_differences else 0
+    )
+
+    # If more than 5% of the characters are spaces and the spaces are relatively uniform, split by words
+    if space_percentage > 0.05 and uniformity <= length:
+        words = string.split()
+        chunks = [
+            " ".join(words[i : i + length]) for i in range(0, len(words), length)
+        ]
+    else:
+        chunks = [string[i : i + length] for i in range(0, len(string), length)]
+
+    return chunks
 def summary_video_from_link(
     clean_vtt,
     logger,
@@ -144,29 +167,6 @@ def summary_video_from_link(
     text_output_dir,
     audiopath,
 ):
-    def chunk_string_by_words(string, length):
-        # Calculate the percentage of spaces
-        space_percentage = string.count(" ") / len(string)
-
-        # Calculate the uniformity of spaces
-        space_positions = [i for i, char in enumerate(string) if char == " "]
-        space_differences = [
-            j - i for i, j in zip(space_positions[:-1], space_positions[1:])
-        ]
-        uniformity = (
-            max(space_differences) - min(space_differences) if space_differences else 0
-        )
-
-        # If more than 5% of the characters are spaces and the spaces are relatively uniform, split by words
-        if space_percentage > 0.05 and uniformity <= length:
-            words = string.split()
-            chunks = [
-                " ".join(words[i : i + length]) for i in range(0, len(words), length)
-            ]
-        else:
-            chunks = [string[i : i + length] for i in range(0, len(string), length)]
-
-        return chunks
 
     def find_video_file(directory, pure_filename):
         """
@@ -209,8 +209,6 @@ def summary_video_from_link(
         if not os.path.exists(vtt_file):
             whisper_cmd = f'whisper "{os.path.join(audiopath, pure_filename)}.mp3" --model {args.whisper_model_size} --output_format vtt --output_dir {text_output_dir} --verbose False'
             subprocess.run(whisper_cmd, shell=True)
-        # model = whisper.load_model("base")
-        # result = model.transcribe(f"{os.path.join(audiopath, pure_filename)}.mp3")
 
         logger.info(f"subtitle is stored:{vtt_file}")
 
@@ -242,37 +240,9 @@ def summary_video_from_link(
         os.remove(sample_audio_path)
         return video_language
 
-    def merge_audio_files(files):
-        combined = AudioSegment.empty()
-        for file in files:
-            combined += AudioSegment.from_wav(file)
-        return combined
 
 
-    def integrate_text_format(video_title, args,integrate_text_output_dir, llm_summary):
 
-        integrate_text = (
-            video_title
-            + "\n("
-            + link
-            + ")\n"
-            + "#" * 16
-            + "\n"
-            + "prompt:"
-            + args.prompt
-            + "\n"
-            + llm_summary
-            + "\n"
-            + "#" * 16
-            + "\n"
-        )
-        file_name = os.path.join(integrate_text_output_dir,f"{video_title}.docx")
-
-        doc = Document(file_name)
-
-        new_para = doc.paragraphs[0].insert_paragraph_before(integrate_text)
-        # 保存文件
-        doc.save(file_name)
     logger.info(f"processing {link}")
     pure_filename = get_audio_filename(link, audiopath)
     logger.info(f"video name:{pure_filename}")
@@ -297,62 +267,29 @@ def summary_video_from_link(
         video_path=video_path,
         format="docx",
     )
+    
     if args.timestamp_content == "True":
         with open(vtt_file, "r", encoding="utf-8") as fp:
             file_content = fp.read()
     if args.timestamp_content == "False":
         file_content = clean_vtt(vtt_file)
-    if args.model_name == "auto":
-        if args.language == "zh":
-            model_name = "ycchen/breeze-7b-instruct-v1_0"
-        if args.language == "en":
-            model_name = "llama3:8b"
-    else:
-        model_name = args.model_name
+
 
     chunks = chunk_string_by_words(file_content, 6000)
-    responses = []
-
-    logger.info(f"LLM summarizing")
-    for chunk in tqdm(chunks):
-        body = {
-            "model": model_name,
-            "prompt": f"用以下語言執行任務:{args.language}. {args.prompt} 任務: {chunk} .用以下語言執行任務: {args.language}. {args.prompt} ",
-            "system": f"{args.prompt} 用以下語言執行任務:{args.language}. ",
-            "stream": False,
-        }
-        response = requests.post("http://localhost:11434/api/generate", json=body)
-        responses.append(response.json()["response"])
-
-    combined_responses = "\n-------------- \n".join(responses)
-
-    body = {
-        "model": model_name,
-        "prompt": f"用以下語言執行任務:{args.language}. 請重新組織所有要點組成一篇組織嚴謹、文筆流暢的文章: {combined_responses} .用以下語言執行任務: {args.language}.  請重新組織所有要點組成一篇組織嚴謹、文筆流暢的文章",
-        "system": f"請重新組織所有要點組成一篇組織嚴謹、文筆流暢的文章，用以下語言執行任務:{args.language}. ",
-        "stream": False,
-    }
-    # body = {
-    #     "model": model_name,
-    #     "prompt": f"用以下語言執行任務:{args.language}. {args.prompt} 任務: {combined_responses} .用以下語言執行任務: {args.language}. {args.prompt} ",
-    #     "system": f"{args.prompt} 用以下語言執行任務:{args.language}. ",
-    #     "stream": False,
-    # }
-
-    integrate_response = requests.post("http://localhost:11434/api/generate", json=body)
-    integrate_response_text = integrate_response.json()["response"]
-    response_text = integrate_response_text + "\n =========== \n" + combined_responses
-
-    integrate_text_format(pure_filename, args, integrate_text_output_dir, response_text)
-    logger.info(f"LLM response character count: {len(response_text)}")
-
+    response_text = llm_summary(args,link, integrate_text_output_dir, pure_filename, chunks)
+    generate_audio(response_text, post_audio_output_dir, pure_filename, args)
+def generate_audio(response_text, post_audio_output_dir, pure_filename, args):
+    def merge_audio_files(files):
+        combined = AudioSegment.empty()
+        for file in files:
+            combined += AudioSegment.from_wav(file)
+        return combined
     # Get device
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     # List available 🐸TTS models
-    language = args.language
     detected_language = detect(response_text)
-    if (detected_language == "en") & (language == "zh"):
+    if (detected_language == "en") & (args.language == "zh"):
         language = "en"
     if (
         (detected_language == "zh-cn")
@@ -394,6 +331,68 @@ def summary_video_from_link(
         os.remove(file)
     logger.info(f"TTS output language is: {language}")
     logger.info(f"TTS output is stored: {post_audio_dir}")
+
+def llm_summary(args, link,integrate_text_output_dir, pure_filename, chunks):
+    def integrate_text_format(video_title,link, args,integrate_text_output_dir, llm_content):
+        integrate_text = (
+            video_title
+            + "\n("
+            + link
+            + ")\n"
+            + "#" * 16
+            + "\n"
+            + "prompt:"
+            + args.prompt
+            + "\n"
+            + llm_content
+            + "\n"
+            + "#" * 16
+            + "\n"
+        )
+        file_name = os.path.join(integrate_text_output_dir,f"{video_title}.docx")
+
+        doc = Document(file_name)
+
+        new_para = doc.paragraphs[0].insert_paragraph_before(integrate_text)
+        # 保存文件
+        doc.save(file_name)
+        return None
+    if args.model_name == "auto":
+        if args.language == "zh":
+            model_name = "ycchen/breeze-7b-instruct-v1_0"
+        if args.language == "en":
+            model_name = "llama3:8b"
+    else:
+        model_name = args.model_name
+    responses = []
+
+    logger.info(f"LLM summarizing")
+    for chunk in tqdm(chunks):
+        body = {
+            "model": model_name,
+            "prompt": f"用以下語言執行任務:{args.language}. {args.prompt} 任務: {chunk} .用以下語言執行任務: {args.language}. {args.prompt} ",
+            "system": f"{args.prompt} 用以下語言執行任務:{args.language}. ",
+            "stream": False,
+        }
+        response = requests.post("http://localhost:11434/api/generate", json=body)
+        responses.append(response.json()["response"])
+
+    combined_responses = "\n-------------- \n".join(responses)
+
+    body = {
+        "model": model_name,
+        "prompt": f"用以下語言執行任務:{args.language}. 請重新組織所有要點組成一篇組織嚴謹、文筆流暢的文章: {combined_responses} .用以下語言執行任務: {args.language}.  請重新組織所有要點組成一篇組織嚴謹、文筆流暢的文章",
+        "system": f"請重新組織所有要點組成一篇組織嚴謹、文筆流暢的文章，用以下語言執行任務:{args.language}. ",
+        "stream": False,
+    }
+
+    integrate_response = requests.post("http://localhost:11434/api/generate", json=body)
+    integrate_response_text = integrate_response.json()["response"]
+    response_text = integrate_response_text + "\n =========== \n" + combined_responses
+
+    integrate_text_format(pure_filename,link, args, integrate_text_output_dir, response_text)
+    logger.info(f"LLM response character count: {len(response_text)}")
+    return response_text
 
 
 def parse_arguments():
