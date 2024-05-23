@@ -9,12 +9,12 @@ pip3 install -r requirements.txt
 winget install ffmpeg
 docker compose up
 docker exec ollama ollama pull llama3:8b
-docker exec ollama ollama pull qwen:14b
+docker exec ollama ollama pull ycchen/breeze-7b-instruct-v1_0
 
 2. use following commands to install packages in requirements.txt
 pip3 install -r requirements.txt
 
-3.install FFmpeg
+3. install FFmpeg
 linux:
 sudo apt install ffmpeg
 
@@ -24,21 +24,21 @@ winget install ffmpeg
 macos:
 brew install ffmpeg
 
-4.install ollama(LLM) and ttrss automatically through docker compose
+4. install ollama(LLM) and ttrss automatically through docker compose
 docker compose up
 docker exec ollama ollama pull llama3:8b
-docker exec ollama ollama pull qwen:14b
+docker exec ollama ollama pull ycchen/breeze-7b-instruct-v1_0
 
 # optional (suubscribe rss)
 
-1.get rss subscribe link 
+1. get rss subscribe link 
 (can easily get the subscribe link by rsshub radar chrome extension
 https://chromewebstore.google.com/detail/rsshub-radar/kefjpfngnndepjbopdmoebkipbgkggaa
 
 the subscribe link format:(e.g. nature vedio: https://www.youtube.com/@NatureVideoChannel)
 https://www.youtube.com/feeds/videos.xml?channel_id=UC9bYDXoFxWC2DQatWI366UA
 
-2.subcribe some youtube channel through ttrss
+2. subcribe some youtube channel through ttrss
 
 the GUI interface of ttrss: http://localhost:181/
  
@@ -55,7 +55,7 @@ You can find the subscribe button by clicking on the top-right menu button.
 
 documentations for ttrss: https://ttrss.henry.wang/zh/#%E9%80%9A%E8%BF%87-docker-%E9%83%A8%E7%BD%B2
 
-3.get the rss feed link from ttrss through orange rss icon.
+3. get the rss feed link from ttrss through orange rss icon.
 the format is like : http://localhost:181/public.php?op=rss&id=-3&is_cat=0&q=&key=2wje2q662703f6266c7
 
 
@@ -64,7 +64,7 @@ the script support a cli-interface:
 
 ('--link', type=str, help='The link to the youtube video,or a ttrss link')
 
-('--temp', type=str, default="summary the following content", help='template to llm, in en or zh')
+('--prompt', type=str, default="summary the following content", help='template to llm, in en or zh')
 
 ('--language', type=str, default= "en", help='language of output')
 
@@ -76,15 +76,6 @@ the script support a cli-interface:
 
 ('--output_dir', type=str,default= script_dir, help='output directory')
 
-('--audiopath', type=str, default='./audio/', help='The path to the audio file to save to')
-
-('--text_output_dir', type=str, default='./text/', help='The path to the text file to save to')
-
-('--integrate_text_output_dir', default="./integrate_text/", type=str, help='integrate_text_output_dir')
-
-('--post_text_output_dir', default="./text_llm_processed/", type=str, help='post_text_output_dir')
-
-('--post_audio_output_dir', default="./audio_llm_processed/", type=str, help='post_audio_output_dir')
 
 
 ## process single youtube video

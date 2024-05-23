@@ -5,3 +5,8 @@ TTS
 yt-dlp
 openai-whisper
 ollama
+cv2
+webvtt
+docx-py
+keras
+sklearn
