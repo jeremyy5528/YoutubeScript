@@ -166,6 +166,11 @@ def determine_execution_from_scene(video_path, content, alpha, frame_per_minute)
             should_execute.append(False)
     return should_execute
 
+def basic_execute_pattern(content):
+    should_execute = []
+    for _, _, _, _ in content:
+        should_execute.append(False)
+    return should_execute
 
 def determine_execution_from_boolean_list(boolean_list, content):
     should_execute = []
@@ -317,7 +322,7 @@ def generate_content(vtt_file, link, format):
     return content
 
 
-def vtt_to_file(vtt_file, output_file, link, video_path, format):
+def vtt_to_file(vtt_file, output_file, link, video_path, format,pic_embed):
     """
     Convert a VTT file to a specified format and write the content to an output file.
 
@@ -340,19 +345,20 @@ def vtt_to_file(vtt_file, output_file, link, video_path, format):
     # Write the content to the output file
     if format == "docx":
         # should_execute = should_execute_action(video_path, content, mode='scene', minutes_per_paragraph=0.5, alpha=1.0)
-        logger.debug(f"determine_execution_from_scene")
-        should_execute_scene = determine_execution_from_scene(
-            video_path, content, alpha=1, frame_per_minute=0
-        )
-        logger.debug(f"determine_execution_from_time")
-        logger.debug(f"should_execute_scene:{should_execute_scene}")
-        # should_execute_time = determine_execution_from_time(content, minutes_per_paragraph=0.5)
-        picture_execute = should_execute_scene
+
+        if pic_embed == True:
+            logger.debug(f"determine_execution_from_scene")
+            should_execute_scene = determine_execution_from_scene(
+                video_path, content, alpha=1, frame_per_minute=0
+            )
+            picture_execute = should_execute_scene
+        else:
+            picture_execute = basic_execute_pattern(content)
         should_execute = determine_execution_from_boolean_list(
             should_execute_scene, content
         )
         logger.debug(f"should_execute:{should_execute}")
-        # should_execute = [a or b for a, b in zip(should_execute_scene, should_execute_time)]
+
         logger.debug(f"write_docx")
         write_docx(
             content, should_execute, picture_execute, output_file, video_path=video_path

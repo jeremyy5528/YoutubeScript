@@ -266,6 +266,7 @@ def summary_video_from_link(
         link=link,
         video_path=video_path,
         format="docx",
+        pic_embed = args.pic_embed
     )
     
     if args.timestamp_content == "True":
@@ -274,10 +275,10 @@ def summary_video_from_link(
     if args.timestamp_content == "False":
         file_content = clean_vtt(vtt_file)
 
-
     chunks = chunk_string_by_words(file_content, 6000)
     response_text = llm_summary(args,link, integrate_text_output_dir, pure_filename, chunks)
-    generate_audio(response_text, post_audio_output_dir, pure_filename, args)
+    if args.TTS_create:
+        generate_audio(response_text, post_audio_output_dir, pure_filename, args)
 def generate_audio(response_text, post_audio_output_dir, pure_filename, args):
     def merge_audio_files(files):
         combined = AudioSegment.empty()
@@ -286,7 +287,7 @@ def generate_audio(response_text, post_audio_output_dir, pure_filename, args):
         return combined
     # Get device
     device = "cuda" if torch.cuda.is_available() else "cpu"
-
+    language = args.language 
     # List available 🐸TTS models
     detected_language = detect(response_text)
     if (detected_language == "en") & (args.language == "zh"):
@@ -295,7 +296,7 @@ def generate_audio(response_text, post_audio_output_dir, pure_filename, args):
         (detected_language == "zh-cn")
         | (detected_language == "zh-cn")
         | (detected_language == "zh")
-    ) & (language == "en"):
+    ) & (args.language == "en"):
         language = "zh"
 
     # Init TTS
@@ -435,6 +436,12 @@ def parse_arguments():
     )
     parser.add_argument(
         "--output_dir", type=str, default=script_dir, help="output directory"
+    )
+    parser.add_argument(
+        "--pic_embed", type=bool, default=True, help="output directory"
+    )
+    parser.add_argument(
+        "--TTS_create", type=bool, default=True, help="output directory"
     )
 
     return parser.parse_args()
