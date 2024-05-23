@@ -6,9 +6,7 @@ import os
 import torch
 from torchvision import models, transforms
 from collections import OrderedDict
-from logger import setup_logger
-
-logger = setup_logger()
+from logger import logger
 
 # Initialize ResNet50 model, only keep up to the average pooling layer
 base_model = models.resnet50(pretrained=True)

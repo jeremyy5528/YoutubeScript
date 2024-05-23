@@ -18,7 +18,7 @@ import requests
 import glob
 from pydub import AudioSegment
 from vtt_to_doc import vtt_to_file
-from logger import setup_logger
+from logger import logger
 
 def clean_vtt(filepath: str) -> str:
     """Clean up the content of a subtitle file (vtt) to a string
@@ -458,8 +458,6 @@ def initialize_directories(args,logger):
 
 
 def main(args = parse_arguments()):
-    # 使用解析的參數
-    logger = setup_logger()
     
     logger.info(f"parameters:" + str(args))
 

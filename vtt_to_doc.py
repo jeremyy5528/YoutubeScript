@@ -7,10 +7,7 @@ from docx.oxml import parse_xml
 import webvtt
 from SceneExtractor import detect_scene_changes
 import cv2
-from logger import setup_logger
-
-logger = setup_logger()
-
+from logger import logger
 
 def timecode_to_seconds(timecode):
     """

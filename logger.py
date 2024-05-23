@@ -28,3 +28,4 @@ def setup_logger():
     logger.addHandler(stream_handler)
 
     return logger
+logger = setup_logger()
