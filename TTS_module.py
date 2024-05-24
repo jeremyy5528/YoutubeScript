@@ -35,7 +35,7 @@ def generate_audio_openvoice(text, output_dir, pure_filename, args,speaker='defa
     # obtain tone color embedding
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    ckpt_base = os.path.join(script_dir, 'Openvoice', 'checkpoints', 'base_speakers', language_code)
+    ckpt_base = os.path.join(script_dir, 'resources', 'checkpoints', 'base_speakers', language_code)
     base_speaker_config = os.path.join(ckpt_base, 'config.json')
     base_speaker_checkpoint = os.path.join(ckpt_base, 'checkpoint.pth')
     base_speaker_tts = BaseSpeakerTTS(base_speaker_config, device=device)
@@ -43,10 +43,10 @@ def generate_audio_openvoice(text, output_dir, pure_filename, args,speaker='defa
     src_path = os.path.join(output_dir, f'{pure_filename}.wav')
     base_speaker_tts.tts(text, src_path, speaker=speaker, language=language_full, speed=1.0)
     if mimic_tone_reference == False:
-        reference_speaker = os.path.join(script_dir, 'Openvoice', 'resources', 'ZH_MIRU.mp3')  # This is the voice you want to clone
+        reference_speaker = os.path.join(script_dir, 'resources', 'ZH_MIRU.mp3')  # This is the voice you want to clone
     else:
         reference_speaker = mimic_tone_reference  # This is the voice you want to clone
-        ckpt_converter = os.path.join(script_dir, 'Openvoice', 'checkpoints', 'converter')
+        ckpt_converter = os.path.join(script_dir, 'resources', 'checkpoints', 'converter')
         tone_color_config = os.path.join(ckpt_converter, 'config.json')
         tone_color_checkpoint = os.path.join(ckpt_converter, 'checkpoint.pth')
         tone_color_converter = ToneColorConverter(tone_color_config, device=device)
