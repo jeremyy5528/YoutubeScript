@@ -338,7 +338,7 @@ def vtt_to_file(vtt_file, output_file, link, video_path, format,pic_embed):
     Returns:
     None
     """
-    logger.debug(f"generating content")
+    logger.info(f"generating content")
     # Generate the content
     content = generate_content(vtt_file, link, format)
 
@@ -346,20 +346,21 @@ def vtt_to_file(vtt_file, output_file, link, video_path, format,pic_embed):
     if format == "docx":
         # should_execute = should_execute_action(video_path, content, mode='scene', minutes_per_paragraph=0.5, alpha=1.0)
 
-        if pic_embed == True:
-            logger.debug(f"determine_execution_from_scene")
+        if pic_embed == 'True':
+            logger.info(f"determine_execution_from_scene")
             should_execute_scene = determine_execution_from_scene(
                 video_path, content, alpha=1, frame_per_minute=0
             )
             picture_execute = should_execute_scene
         else:
-            picture_execute = basic_execute_pattern(content)
+            should_execute_scene = basic_execute_pattern(content)
+            picture_execute =  basic_execute_pattern(content)
         should_execute = determine_execution_from_boolean_list(
             should_execute_scene, content
         )
         logger.debug(f"should_execute:{should_execute}")
 
-        logger.debug(f"write_docx")
+        logger.info(f"write_docx")
         write_docx(
             content, should_execute, picture_execute, output_file, video_path=video_path
         )

@@ -8,5 +8,4 @@ ollama
 cv2
 webvtt
 docx-py
-keras
-sklearn
+

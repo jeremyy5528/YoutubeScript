@@ -4,7 +4,7 @@ import os
 def setup_logger():
     script_dir = os.path.dirname(os.path.realpath(__file__))
     logger = logging.getLogger(__name__)
-    logger.setLevel(logging.DEBUG)
+    logger.setLevel(logging.INFO)
 
     # 創建一個handler對象來將日誌信息寫入文件
     file_handler = RotatingFileHandler(

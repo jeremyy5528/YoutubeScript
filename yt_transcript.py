@@ -4,10 +4,7 @@ import json
 import os
 import subprocess
 import argparse
-import torch
 from urllib.parse import urlparse
-from TTS.api import TTS
-from langdetect import detect
 import xml.etree.ElementTree as ET
 from io import StringIO
 import ollama
@@ -16,9 +13,10 @@ import whisper
 import re
 import requests
 import glob
-from pydub import AudioSegment
+from TTS_module import generate_audio_openvoice ,generate_audio_coqui
 from vtt_to_doc import vtt_to_file
 from logger import logger
+from auxiliary_function import chunk_string_by_words
 
 def clean_vtt(filepath: str) -> str:
     """Clean up the content of a subtitle file (vtt) to a string
@@ -133,30 +131,6 @@ def is_localhost(url):
     parsed_url = urlparse(url)
     return parsed_url.netloc.startswith("localhost:")
 
-
-def chunk_string_by_words(string, length):
-    # Calculate the percentage of spaces
-    space_percentage = string.count(" ") / len(string)
-
-    # Calculate the uniformity of spaces
-    space_positions = [i for i, char in enumerate(string) if char == " "]
-    space_differences = [
-        j - i for i, j in zip(space_positions[:-1], space_positions[1:])
-    ]
-    uniformity = (
-        max(space_differences) - min(space_differences) if space_differences else 0
-    )
-
-    # If more than 5% of the characters are spaces and the spaces are relatively uniform, split by words
-    if space_percentage > 0.05 and uniformity <= length:
-        words = string.split()
-        chunks = [
-            " ".join(words[i : i + length]) for i in range(0, len(words), length)
-        ]
-    else:
-        chunks = [string[i : i + length] for i in range(0, len(string), length)]
-
-    return chunks
 def summary_video_from_link(
     clean_vtt,
     logger,
@@ -277,61 +251,9 @@ def summary_video_from_link(
 
     chunks = chunk_string_by_words(file_content, 6000)
     response_text = llm_summary(args,link, integrate_text_output_dir, pure_filename, chunks)
-    if args.TTS_create:
-        generate_audio(response_text, post_audio_output_dir, pure_filename, args)
-def generate_audio(response_text, post_audio_output_dir, pure_filename, args):
-    def merge_audio_files(files):
-        combined = AudioSegment.empty()
-        for file in files:
-            combined += AudioSegment.from_wav(file)
-        return combined
-    # Get device
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    language = args.language 
-    # List available 🐸TTS models
-    detected_language = detect(response_text)
-    if (detected_language == "en") & (args.language == "zh"):
-        language = "en"
-    if (
-        (detected_language == "zh-cn")
-        | (detected_language == "zh-cn")
-        | (detected_language == "zh")
-    ) & (args.language == "en"):
-        language = "zh"
-
-    # Init TTS
-    logger.info(f"TTS generating")
-    tts = TTS("tts_models/multilingual/multi-dataset/xtts_v2").to(device)
-    # Run TTS
-    post_audio_dir = (
-        f"{os.path.join(post_audio_output_dir, pure_filename)}.wav"
-    )
-    # Split the response_text into chunks of 50 characters
-    chunks = chunk_string_by_words(response_text, 50)
-
-    # Generate the audio files
-    for i, chunk in enumerate(tqdm(chunks)):
-        tts.tts_to_file(
-            chunk,
-            file_path=f"{post_audio_dir}_temp_{i}.wav",
-            speaker="Tammie Ema",
-            language=f"{language}",
-        )
-
-    # Get the list of all generated audio files
-    files = sorted(glob.glob(f"{post_audio_dir}_temp_*.wav"))
-
-    # Merge all the audio files
-    combined = merge_audio_files(files)
-
-    # Save the combined audio to a file
-    combined.export(post_audio_dir, format="wav")
-
-    # Delete the temporary files
-    for file in files:
-        os.remove(file)
-    logger.info(f"TTS output language is: {language}")
-    logger.info(f"TTS output is stored: {post_audio_dir}")
+    if args.TTS_create == 'True':
+        generate_audio_openvoice(response_text, post_audio_output_dir, pure_filename, args)
+        # generate_audio_coqui(response_text, post_audio_output_dir, pure_filename, args)
 
 def llm_summary(args, link,integrate_text_output_dir, pure_filename, chunks):
     def integrate_text_format(video_title,link, args,integrate_text_output_dir, llm_content):
@@ -438,10 +360,10 @@ def parse_arguments():
         "--output_dir", type=str, default=script_dir, help="output directory"
     )
     parser.add_argument(
-        "--pic_embed", type=bool, default=True, help="output directory"
+        "--pic_embed", type=str, default='True', help="output directory"
     )
     parser.add_argument(
-        "--TTS_create", type=bool, default=True, help="output directory"
+        "--TTS_create", type=str, default='True', help="output directory"
     )
 
     return parser.parse_args()
@@ -492,19 +414,19 @@ def main(args = parse_arguments()):
         ollama.pull(args.model_name)
 
     for link in links:
-        try:
-            summary_video_from_link(
-                clean_vtt,
-                logger,
-                args,
-                link,
-                post_audio_output_dir,
-                integrate_text_output_dir,
-                text_output_dir,
-                audiopath,
-            )
-        except Exception as e:
-            logger.error(f"link process error: {e}")
+        # try:
+        summary_video_from_link(
+            clean_vtt,
+            logger,
+            args,
+            link,
+            post_audio_output_dir,
+            integrate_text_output_dir,
+            text_output_dir,
+            audiopath,
+        )
+        # except Exception as e:
+        #     logger.error(f"link process error: {e}")
 
 if __name__ == "__main__":
     main()
