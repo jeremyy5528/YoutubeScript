@@ -4,7 +4,8 @@ from yt_transcript import main
 import tkinter.messagebox as messagebox
 import threading
 import os
-
+import locale
+locale.setlocale(locale.LC_ALL, 'C.utf8')
 class Args:
     def __init__(
         self,
@@ -15,6 +16,8 @@ class Args:
         model_name,
         timestamp_content,
         output_dir,
+        pic_embed, 
+        TTS_create 
     ):
         self.link = link
         self.prompt = prompt
@@ -23,6 +26,8 @@ class Args:
         self.model_name = model_name
         self.timestamp_content = timestamp_content
         self.output_dir = output_dir
+        self.pic_embed = pic_embed
+        self.TTS_create = TTS_create
 
 
 def submit():
@@ -37,6 +42,8 @@ def submit():
     output_dir = (
         output_dir if output_dir else script_dir
     )  # If output_dir is empty, use default script_dir
+    pic_embed = pic_embed_entry.get() or "True"  # New line
+    TTS_create = TTS_create_entry.get() or "True"  # New line
 
     args = Args(
         link,
@@ -46,7 +53,10 @@ def submit():
         model_name,
         timestamp_content,
         output_dir,
+        pic_embed, 
+        TTS_create
     )
+
 
     # Clear the entries
     link_entry.delete(0, "end")
@@ -55,6 +65,8 @@ def submit():
     whisper_model_size_entry.delete(0, "end")
     model_name_entry.delete(0, "end")
     timestamp_content_entry.delete(0, "end")
+    pic_embed_entry.delete(0, "end")
+    TTS_create_entry.delete(0, "end")
 
     # Run main function in a new thread
 
@@ -95,6 +107,16 @@ timestamp_content_label = tk.Label(root, text="Timestamp Content")
 timestamp_content_label.pack()
 timestamp_content_entry = tk.Entry(root)
 timestamp_content_entry.pack()
+
+pic_embed_label = tk.Label(root, text="Pic Embed")
+pic_embed_label.pack()
+pic_embed_entry = tk.Entry(root)
+pic_embed_entry.pack()
+
+TTS_create_label = tk.Label(root, text="TTS Create")
+TTS_create_label.pack()
+TTS_create_entry = tk.Entry(root)
+TTS_create_entry.pack()
 
 submit_button = tk.Button(root, text="Submit", command=submit)
 submit_button.pack()

@@ -5,3 +5,7 @@ __pycache__/vtt_to_doc.cpython-310.pyc
 frame.png
 logfile.log.1
 logfile.log.2
+__pycache__/auxiliary_function.cpython-310.pyc
+__pycache__/logger.cpython-310.pyc
+__pycache__/TTS_module.cpython-310.pyc
+__pycache__/yt_transcript.cpython-310.pyc

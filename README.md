@@ -32,7 +32,9 @@ docker exec ollama ollama pull ycchen/breeze-7b-instruct-v1_0
 # optional (suubscribe rss)
 
 1. get rss subscribe link 
-(can easily get the subscribe link by rsshub radar chrome extension
+
+can easily get the subscribe link by rsshub radar chrome extension
+
 https://chromewebstore.google.com/detail/rsshub-radar/kefjpfngnndepjbopdmoebkipbgkggaa
 
 the subscribe link format:(e.g. nature vedio: https://www.youtube.com/@NatureVideoChannel)
@@ -49,6 +51,7 @@ or
 
 user：admin 
 password：ttrss
+
 (can set the user and password through compose file or change it in GUI after login)
 
 You can find the subscribe button by clicking on the top-right menu button.
@@ -76,6 +79,9 @@ the script support a cli-interface:
 
 ('--output_dir', type=str,default= script_dir, help='output directory')
 
+( "--pic_embed", type=str, default='True', help="True or False, decide whether to embid scrrenshot in docx file")
+
+("--TTS_create", type=str, default='True', help="True or False, decide whether to perform TTS")
 
 
 ## process single youtube video
