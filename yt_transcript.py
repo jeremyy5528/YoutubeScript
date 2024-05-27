@@ -9,11 +9,12 @@ import xml.etree.ElementTree as ET
 from io import StringIO
 import ollama
 import sys
+import chardet
 import whisper
 import re
 import requests
 import glob
-from TTS_module import generate_audio_openvoice ,generate_audio_coqui
+from TTS_module import generate_audio_openvoice 
 from vtt_to_doc import vtt_to_file
 from logger import logger
 from auxiliary_function import chunk_string_by_words
@@ -189,34 +190,34 @@ def summary_video_from_link(
     def get_audio_filename(link, audiopath):
         get_dl_audio_path_cmd = f'yt-dlp {link} --get-filename -o "{audiopath}/%(title)s.%(ext)s" -S "+size,+br" --extract-audio --audio-format mp3 --no-keep-video --quiet'
         filename = (
-            subprocess.check_output(get_dl_audio_path_cmd, shell=True)
-            .decode("utf-8")
-            .strip()
-        )
+            subprocess.check_output(get_dl_audio_path_cmd, shell=True))
+        encode = chardet.detect(filename)
+        filename = filename.decode(encode['encoding'].lower(),'ignore').strip()
         pure_filename = os.path.splitext(
             os.path.basename(filename).strip()
         )[0]
         return pure_filename
 
     def get_video_lang(audiopath, link, pure_filename):
-        download_video_cmd = f'yt-dlp {link} -o "{audiopath}/%(title)s.%(ext)s" --download-sections "*01:00-01:30" --extract-audio --audio-format mp3 --no-keep-video'
+        download_video_cmd = f'yt-dlp {link} -o "{audiopath}/%(title)s.%(ext)s" --download-sections "*01:00-02:00" --extract-audio --audio-format mp3 --no-keep-video'
         subprocess.run(download_video_cmd, shell=True)
         sample_audio_path = os.path.join(audiopath, f"{pure_filename}.mp3")
         logger.info(f"sample audio is stored:{sample_audio_path}")
         audio = whisper.load_audio(sample_audio_path)
+        logger.debug(f"sample audio is load:{sample_audio_path}")
         audio = whisper.pad_or_trim(audio)
+        logger.debug(f"sample audio is trimmed:{sample_audio_path}")
         model = whisper.load_model("base")
+        logger.debug(f"sample model is load:{sample_audio_path}")
         mel = whisper.log_mel_spectrogram(audio).to(model.device)
+        logger.debug(f"spectrogram:{sample_audio_path}")
         # detect the spoken language
         _, probs = model.detect_language(mel)
         logger.debug(f"Detected language: {max(probs, key=probs.get)}")
         video_language = max(probs, key=probs.get)
         os.remove(sample_audio_path)
         return video_language
-
-
-
-
+    
     logger.info(f"processing {link}")
     pure_filename = get_audio_filename(link, audiopath)
     logger.info(f"video name:{pure_filename}")

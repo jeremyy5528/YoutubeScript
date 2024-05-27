@@ -2,7 +2,7 @@ import os
 import torch
 import openvoice.se_extractor as se_extractor
 from openvoice.api import BaseSpeakerTTS, ToneColorConverter
-import TTS
+# import TTS
 import glob
 from tqdm import tqdm
 from langdetect import detect
@@ -67,48 +67,48 @@ def generate_audio_openvoice(text, output_dir, pure_filename, args,speaker='defa
             message=encode_message)
 
 
-def generate_audio_coqui(response_text, post_audio_output_dir, pure_filename, args):
-    def merge_audio_files(files):
-        combined = AudioSegment.empty()
-        for file in files:
-            combined += AudioSegment.from_wav(file)
-        return combined
-    # Get device
+# def generate_audio_coqui(response_text, post_audio_output_dir, pure_filename, args):
+#     def merge_audio_files(files):
+#         combined = AudioSegment.empty()
+#         for file in files:
+#             combined += AudioSegment.from_wav(file)
+#         return combined
+#     # Get device
     
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    language = args.language 
-    # List available 🐸TTS model
-    language = detect_language(response_text,args)
-    # Init TTS
-    logger.info(f"TTS generating")
-    tts = TTS("tts_models/multilingual/multi-dataset/xtts_v2").to(device)
-    # Run TTS
-    post_audio_dir = (
-        f"{os.path.join(post_audio_output_dir, pure_filename)}.wav"
-    )
-    # Split the response_text into chunks of 50 characters
-    chunks = chunk_string_by_words(response_text, 50)
+#     device = "cuda" if torch.cuda.is_available() else "cpu"
+#     language = args.language 
+#     # List available 🐸TTS model
+#     language = detect_language(response_text,args)
+#     # Init TTS
+#     logger.info(f"TTS generating")
+#     tts = TTS("tts_models/multilingual/multi-dataset/xtts_v2").to(device)
+#     # Run TTS
+#     post_audio_dir = (
+#         f"{os.path.join(post_audio_output_dir, pure_filename)}.wav"
+#     )
+#     # Split the response_text into chunks of 50 characters
+#     chunks = chunk_string_by_words(response_text, 50)
 
-    # Generate the audio files
-    for i, chunk in enumerate(tqdm(chunks)):
-        tts.tts_to_file(
-            chunk,
-            file_path=f"{post_audio_dir}_temp_{i}.wav",
-            speaker="Tammie Ema",
-            language=f"{language}",
-        )
+#     # Generate the audio files
+#     for i, chunk in enumerate(tqdm(chunks)):
+#         tts.tts_to_file(
+#             chunk,
+#             file_path=f"{post_audio_dir}_temp_{i}.wav",
+#             speaker="Tammie Ema",
+#             language=f"{language}",
+#         )
 
-    # Get the list of all generated audio files
-    files = sorted(glob.glob(f"{post_audio_dir}_temp_*.wav"))
+#     # Get the list of all generated audio files
+#     files = sorted(glob.glob(f"{post_audio_dir}_temp_*.wav"))
 
-    # Merge all the audio files
-    combined = merge_audio_files(files)
+#     # Merge all the audio files
+#     combined = merge_audio_files(files)
 
-    # Save the combined audio to a file
-    combined.export(post_audio_dir, format="wav")
+#     # Save the combined audio to a file
+#     combined.export(post_audio_dir, format="wav")
 
-    # Delete the temporary files
-    for file in files:
-        os.remove(file)
-    logger.info(f"TTS output language is: {language}")
-    logger.info(f"TTS output is stored: {post_audio_dir}")
+#     # Delete the temporary files
+#     for file in files:
+#         os.remove(file)
+#     logger.info(f"TTS output language is: {language}")
+#     logger.info(f"TTS output is stored: {post_audio_dir}")
