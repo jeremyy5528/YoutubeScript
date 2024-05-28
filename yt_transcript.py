@@ -142,6 +142,35 @@ def summary_video_from_link(
     text_output_dir,
     audiopath,
 ):
+    """
+    Summarizes a video from a given link.
+
+    Args:
+        clean_vtt (function): A function to clean the VTT file.
+        logger: The logger object for logging messages.
+        args: The command-line arguments.
+        link (str): The link to the video.
+        post_audio_output_dir (str): The directory to store the generated audio.
+        integrate_text_output_dir (str): The directory to store the integrated text output.
+        text_output_dir (str): The directory to store the text output.
+        audiopath (str): The path to the audio files.
+
+    Returns:
+        None
+    """
+
+    # Rest of the code...
+def summary_video_from_link(
+    clean_vtt,
+    logger,
+    args,
+    link,
+    post_audio_output_dir,
+    integrate_text_output_dir,
+    text_output_dir,
+    audiopath,
+):
+    
 
     def find_video_file(directory, pure_filename):
         """

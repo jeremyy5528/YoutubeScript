@@ -15,6 +15,15 @@ base_model.eval()
 
 
 def extract_features(frame):
+    """
+    Extracts features from a given frame.
+
+    Args:
+        frame (numpy.ndarray): The input frame.
+
+    Returns:
+        numpy.ndarray: The extracted features.
+    """
     img = cv2.resize(frame, (224, 224))
 
     # Convert to float tensor
@@ -37,6 +46,16 @@ def process_frame(frame_number, frame):
 
 
 def calculate_similarities_parallel(video_path):
+    """
+    Calculate similarities between frames in a video using parallel processing.
+
+    Args:
+        video_path (str): The path to the video file.
+
+    Returns:
+        list: A list of tuples containing the frame number and similarity score.
+
+    """
     cap = cv2.VideoCapture(video_path)
     features_dict = OrderedDict()
     logger.debug(f"to threadPool in similarity calculation")
@@ -82,6 +101,24 @@ def calculate_similarities_parallel(video_path):
 
 
 def detect_scene_changes(video_path, alpha=0, frame_per_minute=0):
+    """
+    Detects scene changes in a video based on similarity scores between frames.
+
+    Args:
+        video_path (str): The path to the video file.
+        alpha (float, optional): The number of standard deviations below the mean similarity score
+            to consider as a scene change. Defaults to 0.
+        frame_per_minute (float, optional): The number of frames per minute to consider as a scene change.
+            Defaults to 0.
+
+    Returns:
+        list: A list of time points (in seconds) where scene changes occur.
+
+    Raises:
+        AssertionError: If the video_path does not exist, alpha is not a number, or frame_per_minute is not a number.
+        AssertionError: If the similarities list is empty or the similarity_scores list is empty.
+    """
+    
     assert os.path.isfile(video_path), f"{video_path} does not exist"
     assert isinstance(alpha, (int, float)), "alpha must be a number"
     assert isinstance(

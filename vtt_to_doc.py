@@ -173,6 +173,17 @@ def basic_execute_pattern(content):
     return should_execute
 
 def determine_execution_from_boolean_list(boolean_list, content):
+    """
+    Determines the execution status for each item in a boolean list based on the start time of the corresponding content.
+
+    Args:
+        boolean_list (list): A list of boolean values indicating whether each item should be executed.
+        content (list): A list of tuples containing the content information, where each tuple has the format (id, text, start, end).
+
+    Returns:
+        list: A list of boolean values indicating the execution status for each item.
+
+    """
     should_execute = []
     last_true_time = 0  # Initialize
 
@@ -194,6 +205,16 @@ def determine_execution_from_boolean_list(boolean_list, content):
 
 
 def determine_execution_from_time(content, minutes_per_paragraph):
+    """
+    Determines whether each paragraph in the content should be executed based on the time difference between paragraphs.
+
+    Args:
+        content (list): A list of tuples representing the content, where each tuple contains the paragraph index, text, start time, and end time.
+        minutes_per_paragraph (int): The minimum number of minutes that should elapse between paragraphs.
+
+    Returns:
+        list: A list of boolean values indicating whether each paragraph should be executed.
+    """
     should_execute = []
     start_time = parse_time(content[0][2])  # Parse the start time
     for _, _, start, _ in content:
@@ -207,6 +228,18 @@ def determine_execution_from_time(content, minutes_per_paragraph):
 
 
 def add_frame_to_docx(cap, timestamp, para):
+    """
+    Adds a frame from a video to a docx file.
+
+    Args:
+        cap (cv2.VideoCapture): The video capture object.
+        timestamp (datetime.datetime): The timestamp of the desired frame.
+        para (docx.text.paragraph.Paragraph): The paragraph to which the frame will be added.
+
+    Returns:
+        docx.text.paragraph.Paragraph: The original Paragraph object with the added frame.
+    """
+    
     # Convert timestamp to frame number
     fps = cap.get(cv2.CAP_PROP_FPS)
     timestamp_seconds = timestamp.replace(tzinfo=timezone.utc).timestamp()

@@ -22,9 +22,25 @@ def detect_language(response_text,args):
         language = "zh"
     return language
 
-def generate_audio_openvoice(text, output_dir, pure_filename, args,speaker='default',mimic_tone_reference = False):
-    language = detect_language(text,args)
-    # Run the base speaker tts for each speaker in the list
+def generate_audio_openvoice(text, output_dir, pure_filename, args, speaker='default', mimic_tone_reference=False):
+    """
+    Generate audio using the OpenVoice TTS module.
+
+    Args:
+        text (str): The input text to be converted into audio.
+        output_dir (str): The directory where the generated audio file will be saved.
+        pure_filename (str): The filename of the generated audio file (without extension).
+        args: Additional arguments for the TTS module.
+        speaker (str, optional): The speaker to use for the generated audio. Defaults to 'default'.
+        mimic_tone_reference (bool or str, optional): If False, use the default tone reference. If a string, use the provided tone reference file. Defaults to False.
+
+    Returns:
+        None
+    """
+    
+    language = detect_language(text, args)
+    
+    # Run the base speaker TTS for each speaker in the list
     if language == 'en':
         language_full = 'English'
         language_code = 'EN'
@@ -32,7 +48,7 @@ def generate_audio_openvoice(text, output_dir, pure_filename, args,speaker='defa
         language_full = 'Chinese'
         language_code = 'ZH'
 
-    # obtain tone color embedding
+    # Obtain tone color embedding
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
     script_dir = os.path.dirname(os.path.abspath(__file__))
     ckpt_base = os.path.join(script_dir, 'resources', 'checkpoints', 'base_speakers', language_code)
@@ -42,6 +58,7 @@ def generate_audio_openvoice(text, output_dir, pure_filename, args,speaker='defa
     base_speaker_tts.load_ckpt(base_speaker_checkpoint)
     src_path = os.path.join(output_dir, f'{pure_filename}.wav')
     base_speaker_tts.tts(text, src_path, speaker=speaker, language=language_full, speed=1.0)
+    
     if mimic_tone_reference == False:
         reference_speaker = os.path.join(script_dir, 'resources', 'ZH_MIRU.mp3')  # This is the voice you want to clone
     else:
@@ -53,8 +70,7 @@ def generate_audio_openvoice(text, output_dir, pure_filename, args,speaker='defa
         tone_color_converter.load_ckpt(tone_color_checkpoint)
 
         source_se = torch.load(os.path.join(ckpt_base, f'{language}_default_se.pth')).to(device)
-        target_se, audio_name = se_extractor.get_se(reference_speaker, tone_color_converter, target_dir='processed',
-                                                    vad=True)
+        target_se, audio_name = se_extractor.get_se(reference_speaker, tone_color_converter, target_dir='processed', vad=True)
         save_path = os.path.join(output_dir, f'{pure_filename}_{speaker}.wav')
 
         # Run the tone color converter
