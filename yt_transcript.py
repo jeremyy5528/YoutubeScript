@@ -14,11 +14,12 @@ import chardet
 import re
 import requests
 import glob
-from STT_module import audio_language,faster_whisper_transcribe_vtt
-from TTS_module import generate_audio_openvoice 
+from STT_module import audio_language, faster_whisper_transcribe_vtt
+from TTS_module import generate_audio_openvoice
 from vtt_to_doc import vtt_to_file
 from logger import logger
 from auxiliary_function import chunk_string_by_words
+
 
 def clean_vtt(filepath: str) -> str:
     """Clean up the content of a subtitle file (vtt) to a string
@@ -160,7 +161,6 @@ def summary_video_from_link(
     Returns:
         None
     """
-    
 
     def find_video_file(directory, pure_filename):
         """
@@ -174,26 +174,31 @@ def summary_video_from_link(
             str: The filename with extension of the video file, or None if no video file is found.
         """
         # Define the video file extensions
-        video_extensions = [".webm", ".mp4", ".avi", ".mov", ".mkv", ".flv", ".wmv",".m4a"]
+        video_extensions = [
+            ".webm",
+            ".mp4",
+            ".avi",
+            ".mov",
+            ".mkv",
+            ".flv",
+            ".wmv",
+            ".m4a",
+        ]
 
         # Search for the video file
-        all_files = glob.glob(
-            os.path.join(directory, f"*{pure_filename}*")
-        )
-        
+        all_files = glob.glob(os.path.join(directory, f"*{pure_filename}*"))
+
         for file in all_files:
             filename, extension = os.path.splitext(file)
             if extension in video_extensions and not re.search(r"\.f\d{3}", filename):
                 # Return the video file found
                 return glob.glob(os.path.join(directory, os.path.basename(file)))[0]
-        logger.error('did not donwload video yet' )
+        logger.error("did not donwload video yet")
 
     def download_subtitle_file(
         audiopath, pure_filename, video_language, text_output_dir
     ):
-        vtt_file = os.path.join(
-            audiopath, f"{pure_filename}.{video_language}.vtt"
-        )
+        vtt_file = os.path.join(audiopath, f"{pure_filename}.{video_language}.vtt")
         if os.path.exists(vtt_file):
             os.rename(
                 vtt_file,
@@ -202,56 +207,56 @@ def summary_video_from_link(
 
         vtt_file = os.path.join(text_output_dir, f"{pure_filename}.vtt")
         if not os.path.exists(vtt_file):
-            faster_whisper_transcribe_vtt(f"{os.path.join(audiopath, pure_filename)}.mp3",args.whisper_model_size,vtt_file)
-             
+            faster_whisper_transcribe_vtt(
+                f"{os.path.join(audiopath, pure_filename)}.mp3",
+                args.whisper_model_size,
+                vtt_file,
+            )
 
         logger.info(f"subtitle is stored:{vtt_file}")
 
     def get_audio_filename(link, audiopath):
         get_dl_audio_path_cmd = f'yt-dlp {link} --get-filename -o "{audiopath}/%(title)s.%(ext)s" -S "+size,+br" --extract-audio --audio-format mp3 --no-keep-video --quiet'
         # Run the command without specifying the encoding
-        filename = subprocess.check_output(get_dl_audio_path_cmd, shell=True, universal_newlines=True).strip()
+        filename = subprocess.check_output(
+            get_dl_audio_path_cmd, shell=True, universal_newlines=True
+        ).strip()
         # Get the filename without extension
         pure_filename = os.path.splitext(os.path.basename(filename))[0]
         # Normalize the filename
-        pure_filename = unicodedata.normalize('NFKD', pure_filename)
+        pure_filename = unicodedata.normalize("NFKD", pure_filename)
         return pure_filename
 
     def get_video_lang(audiopath, link, pure_filename):
         download_video_cmd = f'yt-dlp {link} -o "{audiopath}/%(title)s.%(ext)s" --download-sections "*01:00-01:30" --extract-audio --audio-format mp3 --no-keep-video'
         subprocess.run(download_video_cmd, shell=True)
         sample_audio_path = os.path.join(audiopath, f"{pure_filename}.mp3")
-        print(sample_audio_path)
         video_language = audio_language(sample_audio_path)
         return video_language
-    
+
     logger.info(f"processing {link}")
     pure_filename = get_audio_filename(link, audiopath)
     logger.info(f"video name:{pure_filename}")
     video_language = get_video_lang(audiopath, link, pure_filename)
     logger.info(f"video language:{video_language}")
-    
+
     download_video_cmd = f'yt-dlp {link} -o "{audiopath}/%(title)s.%(ext)s" --extract-audio --audio-format mp3 --keep-video  --force-overwrites  --write-subs  --sub-format vtt --sub-langs {video_language}'
     subprocess.run(download_video_cmd, shell=True)
 
-    download_subtitle_file(
-        audiopath, pure_filename, video_language, text_output_dir
-    )
+    download_subtitle_file(audiopath, pure_filename, video_language, text_output_dir)
     # llm
     vtt_file = os.path.join(text_output_dir, f"{pure_filename}.vtt")
 
-    video_path = find_video_file(
-        directory=audiopath, pure_filename=pure_filename
-    )
+    video_path = find_video_file(directory=audiopath, pure_filename=pure_filename)
     vtt_to_file(
         vtt_file=vtt_file,
-        output_file=os.path.join(integrate_text_output_dir,f"{pure_filename}.docx"),
+        output_file=os.path.join(integrate_text_output_dir, f"{pure_filename}.docx"),
         link=link,
         video_path=video_path,
         format="docx",
-        pic_embed = args.pic_embed
+        pic_embed=args.pic_embed,
     )
-    
+
     if args.timestamp_content == "True":
         with open(vtt_file, "r", encoding="utf-8") as fp:
             file_content = fp.read()
@@ -259,13 +264,20 @@ def summary_video_from_link(
         file_content = clean_vtt(vtt_file)
 
     chunks = chunk_string_by_words(file_content, 6000)
-    response_text = llm_summary(args,link, integrate_text_output_dir, pure_filename, chunks)
-    if args.TTS_create == 'True':
-        generate_audio_openvoice(response_text, post_audio_output_dir, pure_filename, args)
+    response_text = llm_summary(
+        args, link, integrate_text_output_dir, pure_filename, chunks
+    )
+    if args.TTS_create == "True":
+        generate_audio_openvoice(
+            response_text, post_audio_output_dir, pure_filename, args
+        )
         # generate_audio_coqui(response_text, post_audio_output_dir, pure_filename, args)
 
-def llm_summary(args, link,integrate_text_output_dir, pure_filename, chunks):
-    def integrate_text_format(video_title,link, args,integrate_text_output_dir, llm_content):
+
+def llm_summary(args, link, integrate_text_output_dir, pure_filename, chunks):
+    def integrate_text_format(
+        video_title, link, args, integrate_text_output_dir, llm_content
+    ):
         integrate_text = (
             video_title
             + "\n("
@@ -281,7 +293,7 @@ def llm_summary(args, link,integrate_text_output_dir, pure_filename, chunks):
             + "#" * 16
             + "\n"
         )
-        file_name = os.path.join(integrate_text_output_dir,f"{video_title}.docx")
+        file_name = os.path.join(integrate_text_output_dir, f"{video_title}.docx")
 
         doc = Document(file_name)
 
@@ -289,6 +301,7 @@ def llm_summary(args, link,integrate_text_output_dir, pure_filename, chunks):
         # 保存文件
         doc.save(file_name)
         return None
+
     if args.model_name == "auto":
         if args.language == "zh":
             model_name = "ycchen/breeze-7b-instruct-v1_0"
@@ -322,7 +335,9 @@ def llm_summary(args, link,integrate_text_output_dir, pure_filename, chunks):
     integrate_response_text = integrate_response.json()["response"]
     response_text = integrate_response_text + "\n =========== \n" + combined_responses
 
-    integrate_text_format(pure_filename,link, args, integrate_text_output_dir, response_text)
+    integrate_text_format(
+        pure_filename, link, args, integrate_text_output_dir, response_text
+    )
     logger.info(f"LLM response character count: {len(response_text)}")
     return response_text
 
@@ -369,16 +384,16 @@ def parse_arguments():
         "--output_dir", type=str, default=script_dir, help="output directory"
     )
     parser.add_argument(
-        "--pic_embed", type=str, default='True', help="output directory"
+        "--pic_embed", type=str, default="True", help="output directory"
     )
     parser.add_argument(
-        "--TTS_create", type=str, default='True', help="output directory"
+        "--TTS_create", type=str, default="True", help="output directory"
     )
 
     return parser.parse_args()
 
 
-def initialize_directories(args,logger):
+def initialize_directories(args, logger):
     os.makedirs(args.output_dir, exist_ok=True)
     os.chdir(args.output_dir)
     logger.info(f"current directory:{os.getcwd()}")
@@ -394,12 +409,12 @@ def initialize_directories(args,logger):
     return audiopath, text_output_dir, integrate_text_output_dir, post_audio_output_dir
 
 
-def main(args = parse_arguments()):
-    
+def main(args=parse_arguments()):
+
     logger.info(f"parameters:" + str(args))
 
     audiopath, text_output_dir, integrate_text_output_dir, post_audio_output_dir = (
-        initialize_directories(args,logger)
+        initialize_directories(args, logger)
     )
 
     if args.link == "":
@@ -436,6 +451,7 @@ def main(args = parse_arguments()):
         )
         # except Exception as e:
         #     logger.error(f"link process error: {e}")
+
 
 if __name__ == "__main__":
     main()
