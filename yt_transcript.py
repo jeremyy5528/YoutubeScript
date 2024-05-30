@@ -1,3 +1,4 @@
+import unicodedata
 from docx import Document
 from tqdm import tqdm
 import json
@@ -10,10 +11,10 @@ from io import StringIO
 import ollama
 import sys
 import chardet
-import whisper
 import re
 import requests
 import glob
+from STT_module import audio_language,faster_whisper_transcribe_vtt
 from TTS_module import generate_audio_openvoice 
 from vtt_to_doc import vtt_to_file
 from logger import logger
@@ -132,6 +133,7 @@ def is_localhost(url):
     parsed_url = urlparse(url)
     return parsed_url.netloc.startswith("localhost:")
 
+
 def summary_video_from_link(
     clean_vtt,
     logger,
@@ -158,18 +160,6 @@ def summary_video_from_link(
     Returns:
         None
     """
-
-    # Rest of the code...
-def summary_video_from_link(
-    clean_vtt,
-    logger,
-    args,
-    link,
-    post_audio_output_dir,
-    integrate_text_output_dir,
-    text_output_dir,
-    audiopath,
-):
     
 
     def find_video_file(directory, pure_filename):
@@ -190,12 +180,13 @@ def summary_video_from_link(
         all_files = glob.glob(
             os.path.join(directory, f"*{pure_filename}*")
         )
-
+        
         for file in all_files:
             filename, extension = os.path.splitext(file)
             if extension in video_extensions and not re.search(r"\.f\d{3}", filename):
                 # Return the video file found
                 return glob.glob(os.path.join(directory, os.path.basename(file)))[0]
+        logger.error('did not donwload video yet' )
 
     def download_subtitle_file(
         audiopath, pure_filename, video_language, text_output_dir
@@ -211,40 +202,27 @@ def summary_video_from_link(
 
         vtt_file = os.path.join(text_output_dir, f"{pure_filename}.vtt")
         if not os.path.exists(vtt_file):
-            whisper_cmd = f'whisper "{os.path.join(audiopath, pure_filename)}.mp3" --model {args.whisper_model_size} --output_format vtt --output_dir {text_output_dir} --verbose False'
-            subprocess.run(whisper_cmd, shell=True)
+            faster_whisper_transcribe_vtt(f"{os.path.join(audiopath, pure_filename)}.mp3",args.whisper_model_size,vtt_file)
+             
 
         logger.info(f"subtitle is stored:{vtt_file}")
 
     def get_audio_filename(link, audiopath):
         get_dl_audio_path_cmd = f'yt-dlp {link} --get-filename -o "{audiopath}/%(title)s.%(ext)s" -S "+size,+br" --extract-audio --audio-format mp3 --no-keep-video --quiet'
-        filename = (
-            subprocess.check_output(get_dl_audio_path_cmd, shell=True))
-        encode = chardet.detect(filename)
-        filename = filename.decode(encode['encoding'].lower(),'ignore').strip()
-        pure_filename = os.path.splitext(
-            os.path.basename(filename).strip()
-        )[0]
+        # Run the command without specifying the encoding
+        filename = subprocess.check_output(get_dl_audio_path_cmd, shell=True, universal_newlines=True).strip()
+        # Get the filename without extension
+        pure_filename = os.path.splitext(os.path.basename(filename))[0]
+        # Normalize the filename
+        pure_filename = unicodedata.normalize('NFKD', pure_filename)
         return pure_filename
 
     def get_video_lang(audiopath, link, pure_filename):
-        download_video_cmd = f'yt-dlp {link} -o "{audiopath}/%(title)s.%(ext)s" --download-sections "*01:00-02:00" --extract-audio --audio-format mp3 --no-keep-video'
+        download_video_cmd = f'yt-dlp {link} -o "{audiopath}/%(title)s.%(ext)s" --download-sections "*01:00-01:30" --extract-audio --audio-format mp3 --no-keep-video'
         subprocess.run(download_video_cmd, shell=True)
         sample_audio_path = os.path.join(audiopath, f"{pure_filename}.mp3")
-        logger.info(f"sample audio is stored:{sample_audio_path}")
-        audio = whisper.load_audio(sample_audio_path)
-        logger.debug(f"sample audio is load:{sample_audio_path}")
-        audio = whisper.pad_or_trim(audio)
-        logger.debug(f"sample audio is trimmed:{sample_audio_path}")
-        model = whisper.load_model("base")
-        logger.debug(f"sample model is load:{sample_audio_path}")
-        mel = whisper.log_mel_spectrogram(audio).to(model.device)
-        logger.debug(f"spectrogram:{sample_audio_path}")
-        # detect the spoken language
-        _, probs = model.detect_language(mel)
-        logger.debug(f"Detected language: {max(probs, key=probs.get)}")
-        video_language = max(probs, key=probs.get)
-        os.remove(sample_audio_path)
+        print(sample_audio_path)
+        video_language = audio_language(sample_audio_path)
         return video_language
     
     logger.info(f"processing {link}")
@@ -252,8 +230,8 @@ def summary_video_from_link(
     logger.info(f"video name:{pure_filename}")
     video_language = get_video_lang(audiopath, link, pure_filename)
     logger.info(f"video language:{video_language}")
-
-    download_video_cmd = f'yt-dlp {link} -o "{audiopath}/%(title)s.%(ext)s" --extract-audio --audio-format mp3 --keep-video  --write-subs  --sub-format vtt --sub-langs {video_language}'
+    
+    download_video_cmd = f'yt-dlp {link} -o "{audiopath}/%(title)s.%(ext)s" --extract-audio --audio-format mp3 --keep-video  --force-overwrites  --write-subs  --sub-format vtt --sub-langs {video_language}'
     subprocess.run(download_video_cmd, shell=True)
 
     download_subtitle_file(
@@ -261,6 +239,7 @@ def summary_video_from_link(
     )
     # llm
     vtt_file = os.path.join(text_output_dir, f"{pure_filename}.vtt")
+
     video_path = find_video_file(
         directory=audiopath, pure_filename=pure_filename
     )
