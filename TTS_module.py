@@ -9,20 +9,20 @@ from langdetect import detect
 from pydub import AudioSegment
 from auxiliary_function import chunk_string_by_words
 from logger import logger
-def detect_language(response_text,args):
-    language = args.language
+def detect_language(response_text,language):
+    
     detected_language = detect(response_text)
-    if (detected_language == "en") & (args.language == "zh"):
+    if (detected_language == "en") & (language == "zh"):
         language = "en"
     if (
         (detected_language == "zh-cn")
         | (detected_language == "zh-cn")
         | (detected_language == "zh")
-    ) & (args.language == "en"):
+    ) & (language == "en"):
         language = "zh"
     return language
 
-def generate_audio_openvoice(text, output_dir, pure_filename, args, speaker='default', mimic_tone_reference=False):
+def generate_audio_openvoice(text, output_dir, pure_filename, language, speaker='default', mimic_tone_reference=False):
     """
     Generate audio using the OpenVoice TTS module.
 
@@ -38,7 +38,7 @@ def generate_audio_openvoice(text, output_dir, pure_filename, args, speaker='def
         None
     """
     
-    language = detect_language(text, args)
+    language = detect_language(text, language)
     
     # Run the base speaker TTS for each speaker in the list
     if language == 'en':
@@ -83,7 +83,7 @@ def generate_audio_openvoice(text, output_dir, pure_filename, args, speaker='def
             message=encode_message)
 
 
-# def generate_audio_coqui(response_text, post_audio_output_dir, pure_filename, args):
+# def generate_audio_coqui(response_text, post_audio_output_dir, pure_filename, language):
 #     def merge_audio_files(files):
 #         combined = AudioSegment.empty()
 #         for file in files:
@@ -92,9 +92,9 @@ def generate_audio_openvoice(text, output_dir, pure_filename, args, speaker='def
 #     # Get device
     
 #     device = "cuda" if torch.cuda.is_available() else "cpu"
-#     language = args.language 
+#     
 #     # List available 🐸TTS model
-#     language = detect_language(response_text,args)
+#     language = detect_language(response_text,language)
 #     # Init TTS
 #     logger.info(f"TTS generating")
 #     tts = TTS("tts_models/multilingual/multi-dataset/xtts_v2").to(device)

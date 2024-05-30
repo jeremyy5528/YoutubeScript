@@ -269,9 +269,9 @@ def summary_video_from_link(
     )
     if args.TTS_create == "True":
         generate_audio_openvoice(
-            response_text, post_audio_output_dir, pure_filename, args
+            response_text, post_audio_output_dir, args.language,pure_filename
         )
-        # generate_audio_coqui(response_text, post_audio_output_dir, pure_filename, args)
+        # generate_audio_coqui(response_text, post_audio_output_dir, args.language,pure_filename)
 
 
 def llm_summary(args, link, integrate_text_output_dir, pure_filename, chunks):
