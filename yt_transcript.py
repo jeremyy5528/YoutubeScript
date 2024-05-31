@@ -3,6 +3,7 @@ from docx import Document
 from tqdm import tqdm
 import json
 import os
+import tempfile
 import subprocess
 import argparse
 from urllib.parse import urlparse
@@ -19,7 +20,7 @@ from TTS_module import generate_audio_openvoice
 from vtt_to_doc import vtt_to_file
 from logger import logger
 from auxiliary_function import chunk_string_by_words
-
+import webvtt
 
 def clean_vtt(filepath: str) -> str:
     """Clean up the content of a subtitle file (vtt) to a string
@@ -30,26 +31,20 @@ def clean_vtt(filepath: str) -> str:
     Returns:
         str: clean content
     """
-    # read file content
-    with open(filepath, "r", encoding="utf-8") as fp:
-        content = fp.read()
+    # Read the VTT file
+    captions = webvtt.read(filepath)
 
-    # remove header & empty lines
-    lines = [line.strip() for line in content.split("\n") if line.strip()]
-    lines = lines[1:] if lines[0].upper() == "WEBVTT" else lines
+    # Extract the text from each caption
+    lines = [caption.text for caption in captions]
 
-    # remove indexes
-    lines = [lines[i] for i in range(len(lines)) if not lines[i].isdigit()]
-
-    # remove timestamps
-    pattern = r"^\d{2}:\d{2}.\d{3}.*\d{2}:\d{2}.\d{3}$"
-    lines = [lines[i] for i in range(len(lines)) if not re.match(pattern, lines[i])]
-
+    # Join the lines into a single string
     content = " ".join(lines)
-    # remove duplicate spaces
+
+    # Remove duplicate spaces
     pattern = r"\s+"
     content = re.sub(pattern, r" ", content)
-    # add space after punctuation marks if it doesn't exist
+
+    # Add space after punctuation marks if it doesn't exist
     pattern = r"([\.!?])(\w)"
     content = re.sub(pattern, r"\1 \2", content)
 
@@ -216,15 +211,19 @@ def summary_video_from_link(
         logger.info(f"subtitle is stored:{vtt_file}")
 
     def get_audio_filename(link, audiopath):
-        get_dl_audio_path_cmd = f'yt-dlp {link} --get-filename -o "{audiopath}/%(title)s.%(ext)s" -S "+size,+br" --extract-audio --audio-format mp3 --no-keep-video --quiet'
-        # Run the command without specifying the encoding
-        filename = subprocess.check_output(
-            get_dl_audio_path_cmd, shell=True, universal_newlines=True
-        ).strip()
-        # Get the filename without extension
-        pure_filename = os.path.splitext(os.path.basename(filename))[0]
+        # Create a temporary directory using the context manager
+        with tempfile.TemporaryDirectory() as temp_dir:
+            get_dl_audio_path_cmd = f'yt-dlp {link} -o "{temp_dir}/%(title)s.%(ext)s" -S "+size,+br" --extract-audio --audio-format mp3 --no-keep-video --quiet'
+            # Run the command without specifying the encoding
+            subprocess.run(
+                get_dl_audio_path_cmd, shell=True, universal_newlines=True
+            )
+            file = os.listdir(temp_dir)
+            # Get the filename without extension
+            pure_filename = os.path.splitext(os.path.basename(file[0]))[0]
         # Normalize the filename
-        pure_filename = unicodedata.normalize("NFKD", pure_filename)
+        # pure_filename = unicodedata.normalize("NFKD", pure_filename)
+        # print(pure_filename)
         return pure_filename
 
     def get_video_lang(audiopath, link, pure_filename):

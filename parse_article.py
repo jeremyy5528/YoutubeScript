@@ -90,8 +90,8 @@ def check_pdf_quality(output_path, target):
 
 def parse_pdf_to_xml(
     service = "processHeaderDocument",
-    config_path="/RAG_workflow/parser/grobid/config.json",
-    pdf_file="/data/parser_need/academic/pdf"
+    config_path=os.path.join(".","resources","grobid_config.json"),
+    pdf_file=""
     ):
     """Main function to convert PDFs to XML."""
     logger.info(f'Entering function: parse_pdf_to_xml')
@@ -279,7 +279,7 @@ def get_title(config_path,pdf_file):
     return str(title)
 
 def parse_pdf(pdf_file):
-    config_path = "C:\RAG\grobid_client_python\config.json"
+    config_path = os.path.join(".","resources","grobid_config.json")
     title = get_title(config_path,pdf_file)
     article_type = determine_article_type(title)
     abstract_data = service_pdf(config_path,pdf_file,article_type,service = "processHeaderDocument")
