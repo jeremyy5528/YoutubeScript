@@ -210,7 +210,7 @@ def summary_video_from_link(
 
         logger.info(f"subtitle is stored:{vtt_file}")
 
-    def get_audio_filename(link, audiopath):
+    def get_audio_filename(link):
         # Create a temporary directory using the context manager
         with tempfile.TemporaryDirectory() as temp_dir:
             get_dl_audio_path_cmd = f'yt-dlp {link} -o "{temp_dir}/%(title)s.%(ext)s" -S "+size,+br" --extract-audio --audio-format mp3 --no-keep-video --quiet'
@@ -223,23 +223,23 @@ def summary_video_from_link(
             pure_filename = os.path.splitext(os.path.basename(file[0]))[0]
         # Normalize the filename
         # pure_filename = unicodedata.normalize("NFKD", pure_filename)
-        # print(pure_filename)
         return pure_filename
 
-    def get_video_lang(audiopath, link, pure_filename):
-        download_video_cmd = f'yt-dlp {link} -o "{audiopath}/%(title)s.%(ext)s" --download-sections "*01:00-01:30" --extract-audio --audio-format mp3 --no-keep-video'
-        subprocess.run(download_video_cmd, shell=True)
-        sample_audio_path = os.path.join(audiopath, f"{pure_filename}.mp3")
-        video_language = audio_language(sample_audio_path)
+    def get_video_lang(link, pure_filename):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            download_video_cmd = f'yt-dlp {link} -o "{temp_dir}/%(title)s.%(ext)s" -S "+size,+br" --download-sections "*01:00-01:30" --extract-audio --audio-format mp3 --no-keep-video'
+            subprocess.run(download_video_cmd, shell=True)
+            sample_audio_path = os.path.join(temp_dir, f"{pure_filename}.mp3")
+            video_language = audio_language(sample_audio_path)
         return video_language
 
     logger.info(f"processing {link}")
-    pure_filename = get_audio_filename(link, audiopath)
+    pure_filename = get_audio_filename(link)
     logger.info(f"video name:{pure_filename}")
-    video_language = get_video_lang(audiopath, link, pure_filename)
+    video_language = get_video_lang(link, pure_filename)
     logger.info(f"video language:{video_language}")
 
-    download_video_cmd = f'yt-dlp {link} -o "{audiopath}/%(title)s.%(ext)s" --extract-audio --audio-format mp3 --keep-video  --force-overwrites  --write-subs  --sub-format vtt --sub-langs {video_language}'
+    download_video_cmd = f'yt-dlp {link} -o "{audiopath}/%(title)s.%(ext)s" -S "+size,+br" --extract-audio --audio-format mp3 --keep-video --write-subs  --sub-format vtt --sub-langs {video_language}'
     subprocess.run(download_video_cmd, shell=True)
 
     download_subtitle_file(audiopath, pure_filename, video_language, text_output_dir)
@@ -268,9 +268,9 @@ def summary_video_from_link(
     )
     if args.TTS_create == "True":
         generate_audio_openvoice(
-            response_text, post_audio_output_dir, args.language,pure_filename
+            response_text, post_audio_output_dir,pure_filename, args.language
         )
-        # generate_audio_coqui(response_text, post_audio_output_dir, args.language,pure_filename)
+        # generate_audio_coqui(response_text, post_audio_output_dir,pure_filename, args.language)
 
 
 def llm_summary(args, link, integrate_text_output_dir, pure_filename, chunks):
@@ -305,7 +305,7 @@ def llm_summary(args, link, integrate_text_output_dir, pure_filename, chunks):
         if args.language == "zh":
             model_name = "ycchen/breeze-7b-instruct-v1_0"
         if args.language == "en":
-            model_name = "llama3:8b"
+            model_name = "llama3"
     else:
         model_name = args.model_name
     responses = []
@@ -319,9 +319,15 @@ def llm_summary(args, link, integrate_text_output_dir, pure_filename, chunks):
             "stream": False,
         }
         response = requests.post("http://localhost:11434/api/generate", json=body)
-        responses.append(response.json()["response"])
-
-    combined_responses = "\n-------------- \n".join(responses)
+        if response.status_code == 200:
+            json_response = response.json()
+            if 'response' in json_response:
+                responses.append(json_response["response"])
+            else:
+                logger.error(f"Key 'response' not found in the returned JSON object: {json_response}")
+        else:
+            logger.error(f"Request failed with status code {response.status_code}: {response.text}")    
+        combined_responses = "\n-------------- \n".join(responses)
 
     body = {
         "model": model_name,
@@ -329,9 +335,18 @@ def llm_summary(args, link, integrate_text_output_dir, pure_filename, chunks):
         "system": f"請重新組織所有要點組成一篇組織嚴謹、文筆流暢的文章，用以下語言執行任務:{args.language}. ",
         "stream": False,
     }
-
+    responses = []
     integrate_response = requests.post("http://localhost:11434/api/generate", json=body)
+    if integrate_response.status_code == 200:
+        json_response = integrate_response.json()
+        if 'response' in json_response:
+            responses.append(json_response["response"])
+        else:
+            logger.error(f"Key 'response' not found in the returned JSON object: {json_response}")
+    else:
+        logger.error(f"Request failed with status code {integrate_response.status_code}: {integrate_response.text}")    
     integrate_response_text = integrate_response.json()["response"]
+    # response_text = integrate_response_text + "\n =========== \n" + combined_responses
     response_text = integrate_response_text + "\n =========== \n" + combined_responses
 
     integrate_text_format(
