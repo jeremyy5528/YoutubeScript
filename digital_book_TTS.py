@@ -27,7 +27,7 @@ def read_epub(path):
             texts.append(text)  # 將內容添加到列表中
     return texts  # 返回列表
 
-def process_epub(file_path, output_dir, filename):
+def epub_TTS(file_path, output_dir, filename):
     """
     Process an EPUB file and generate audio files for each element in the text.
     
@@ -60,4 +60,4 @@ if __name__ == "__main__":
     file_path = r"D:\TTS_audiobook\Malcolm Gladwell - The Tipping Point_ How Little Things Can Make a Big Difference-Little, Brown and Company (2000).epub"
     output_dir = r"D:\TTS_audiobook"
     filename = "output"
-    process_epub(file_path, output_dir, filename)
+    epub_TTS(file_path, output_dir, filename)
