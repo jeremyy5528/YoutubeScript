@@ -39,5 +39,3 @@ def pdf_TTS(pdf_file,output_dir):
     for file_name, text in fulltext_generator(pdf_content, pure_filename):
         generate_audio_openvoice(text, output_dir, pure_filename = file_name,language =  'en', speaker='default', mimic_tone_reference=False)
 
-pdf_TTS("C:\\RAG\\data\\parser_need\\academic\\pdf\\Inoculation with different nitrogen-fixing bacteria and arbuscular mycorrhiza affects grain protein content and nodule bacterial communities of a fava bean crop.pdf",
-        output_dir = 'D:\\test')
