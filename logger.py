@@ -1,29 +1,44 @@
 import logging
 from logging.handlers import RotatingFileHandler
 import os
-def setup_logger():
+class SignalHandler(logging.Handler):
+    def __init__(self, signal):
+        super().__init__()
+        self.signal = signal
+
+    def emit(self, record):
+        msg = self.format(record)
+        self.signal.emit(msg)
+
+def setup_logger(signal_handler=None):
     script_dir = os.path.dirname(os.path.realpath(__file__))
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.DEBUG)
 
-    # 創建一個handler對象來將日誌信息寫入文件
+    # 创建一个handler对象来将日志信息写入文件
     file_handler = RotatingFileHandler(
         os.path.join(script_dir, "logfile.log"), maxBytes=10**6, backupCount=2
     )
     file_handler.setLevel(logging.DEBUG)
 
-    # 創建一個handler對象來將日誌信息輸出到命令行
+    # 创建一个handler对象来将日志信息输出到命令行
     stream_handler = logging.StreamHandler()
     stream_handler.setLevel(logging.DEBUG)
 
-    # 創建一個formatter對象來設定日誌信息的格式
+    # 如果提供了SignalHandler，将其添加到logger
+    if signal_handler is not None:
+        logger.addHandler(signal_handler)
+
+    # 创建一个formatter对象来设置日志信息的格式
     formatter = logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        # ...
     )
+
+    # 将formatter设置到handler对象中
     file_handler.setFormatter(formatter)
     stream_handler.setFormatter(formatter)
 
-    # 將handler添加到logger中
+    # 将handler对象添加到logger中
     logger.addHandler(file_handler)
     logger.addHandler(stream_handler)
 
