@@ -1,6 +1,6 @@
 from PyQt5.QtWidgets import QMessageBox,QApplication, QHeaderView,QWidget, QVBoxLayout, QPushButton, QComboBox, QLabel, QLineEdit, QFileDialog,QTableWidget,QTableWidgetItem
 from PyQt5.QtCore import QThread, pyqtSignal,Qt
-import os 
+import os
 from PyQt5.QtGui import QMovie
 from yt_transcript import main
 import sys
@@ -47,7 +47,6 @@ class Worker(QThread):
         self.logger.removeHandler(self.handler)
 
 class AppDemo(QWidget):
-    batch_executed = pyqtSignal()
     def __init__(self):
         super().__init__()
 
@@ -59,8 +58,6 @@ class AppDemo(QWidget):
         self.loading_label = QLabel(self)
         self.loading_movie = QMovie("loading.gif")
         self.loading_label.setMovie(self.loading_movie)
-
-        self.batch_executed.connect(self.show_message_box)
 
         self.layout = QVBoxLayout()
 
@@ -100,13 +97,16 @@ class AppDemo(QWidget):
         self.timestamp_content_options = ["True", "False"]
         self.timestamp_content_combobox = QComboBox()
         self.timestamp_content_combobox.addItems(self.timestamp_content_options)
+        index = self.timestamp_content_combobox.findText('False', Qt.MatchFixedString)
+        if index >= 0:
+            self.timestamp_content_combobox.setCurrentIndex(index)
         self.layout.addWidget(QLabel('Timestamp Content'))
         self.layout.addWidget(self.timestamp_content_combobox)
 
         self.pic_embed_options = ["True", "False"]
         self.pic_embed_combobox = QComboBox()
         self.pic_embed_combobox.addItems(self.pic_embed_options)
-        self.layout.addWidget(QLabel('Pic Embed'))
+        self.layout.addWidget(QLabel('Picture Embed'))
         self.layout.addWidget(self.pic_embed_combobox)
 
         self.TTS_create_options = ["True", "False"]
@@ -242,9 +242,7 @@ class AppDemo(QWidget):
         QMessageBox.information(self, "Information", "task summit succefully.")
         for row in range(self.queue_table.rowCount()):
             self.execute(row)
-        self.batch_executed.emit()
-    def show_message_box(self):
-        QMessageBox.information(self, "Information", "All tasks have been executed.")
+        
 app = QApplication(sys.argv)
 
 demo = AppDemo()
