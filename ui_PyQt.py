@@ -125,7 +125,7 @@ class AppDemo(QWidget):
         self.queue_table = QTableWidget(0, 12)  # 12 columns for each parameter and execute button
         
         self.queue_table.setHorizontalHeaderLabels([
-            'Status', 'Log Message','Link', 'Prompt', 'Language', 'Whisper Model Size', 'Model Name', 'Timestamp Content', 'Pic Embed', 'TTS Create', 'Output Folder'
+            'Status', 'Log Message','Link', 'Prompt', 'Language', 'Whisper Model Size', 'Model Name', 'Timestamp Content', 'Pic Embed', 'TTS Create', 'Output Folder','Delete'
         ])
         self.layout.addWidget(self.queue_table)
         
@@ -159,6 +159,8 @@ class AppDemo(QWidget):
         pic_embed = self.pic_embed_combobox.currentText()
         TTS_create = self.TTS_create_combobox.currentText()
         output_dir = self.output_dir_entry.text()
+        delete_button = QPushButton('Delete')
+        delete_button.clicked.connect(self.delete_row)
     
         row = self.queue_table.rowCount()
         self.queue_table.insertRow(row)
@@ -173,6 +175,7 @@ class AppDemo(QWidget):
         self.queue_table.setItem(row, 8, QTableWidgetItem(pic_embed))
         self.queue_table.setItem(row, 9, QTableWidgetItem(TTS_create))
         self.queue_table.setItem(row, 10, QTableWidgetItem(output_dir))
+        self.queue_table.setCellWidget(row, 11, delete_button)
         self.queue_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
 
     def add_log_message_to_table(self, message):
@@ -188,7 +191,11 @@ class AppDemo(QWidget):
         # Update the status of the last row to 'Finished'
         last_row = self.queue_table.rowCount() - 1
         self.queue_table.item(last_row, 0).setText('Finished')
-
+    def delete_row(self):
+        button = self.sender()
+        if button:
+            row = self.queue_table.indexAt(button.pos()).row()
+            self.queue_table.removeRow(row)
 
     def execute(self, row):
         link = self.queue_table.item(row, 2).text()
