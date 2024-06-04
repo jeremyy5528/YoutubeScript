@@ -239,7 +239,7 @@ def summary_video_from_link(
     video_language = get_video_lang(link, pure_filename)
     logger.info(f"video language:{video_language}")
 
-    download_video_cmd = f'yt-dlp {link} -o "{audiopath}/%(title)s.%(ext)s" -S "+size,+br" --extract-audio --audio-format mp3 --keep-video --write-subs  --sub-format vtt --sub-langs {video_language}'
+    download_video_cmd = f'yt-dlp {link} -o "{audiopath}/%(title)s.%(ext)s" --extract-audio --audio-format mp3 --keep-video --write-subs  --sub-format vtt --sub-langs {video_language}'
     subprocess.run(download_video_cmd, shell=True)
 
     download_subtitle_file(audiopath, pure_filename, video_language, text_output_dir)

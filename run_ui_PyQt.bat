@@ -1,3 +1,3 @@
 @echo off
-python C:\my_python_scripts\ui_PyQt.py
-pause
+
+py  "C:\Users\Lab315\Desktop\YoutubeScript\ui_PyQt.py"
