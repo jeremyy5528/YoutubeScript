@@ -1,5 +1,6 @@
 from PyQt5.QtWidgets import QMessageBox,QApplication, QHeaderView,QWidget, QVBoxLayout, QPushButton, QComboBox, QLabel, QLineEdit, QFileDialog,QTableWidget,QTableWidgetItem
-from PyQt5.QtCore import QThread, pyqtSignal
+from PyQt5.QtCore import QThread, pyqtSignal,Qt
+import os 
 from PyQt5.QtGui import QMovie
 from yt_transcript import main
 import sys
@@ -46,6 +47,7 @@ class Worker(QThread):
         self.logger.removeHandler(self.handler)
 
 class AppDemo(QWidget):
+    batch_executed = pyqtSignal()
     def __init__(self):
         super().__init__()
 
@@ -57,6 +59,8 @@ class AppDemo(QWidget):
         self.loading_label = QLabel(self)
         self.loading_movie = QMovie("loading.gif")
         self.loading_label.setMovie(self.loading_movie)
+
+        self.batch_executed.connect(self.show_message_box)
 
         self.layout = QVBoxLayout()
 
@@ -80,6 +84,9 @@ class AppDemo(QWidget):
         self.whisper_model_size_options = ["small", "medium", "large"]
         self.whisper_model_size_combobox = QComboBox()
         self.whisper_model_size_combobox.addItems(self.whisper_model_size_options)
+        index = self.whisper_model_size_combobox.findText('medium', Qt.MatchFixedString)
+        if index >= 0:
+            self.whisper_model_size_combobox.setCurrentIndex(index)
         self.layout.addWidget(QLabel('Whisper Model Size'))
         self.layout.addWidget(self.whisper_model_size_combobox)
 
@@ -110,6 +117,8 @@ class AppDemo(QWidget):
 
         
         self.output_dir_entry = QLineEdit()
+        desktop_path = os.path.join(os.path.join(os.environ['USERPROFILE']), 'Desktop')
+        self.output_dir_entry.setText(desktop_path)
         self.layout.addWidget(QLabel('Output Folder'))
         self.layout.addWidget(self.output_dir_entry)
         
@@ -233,7 +242,9 @@ class AppDemo(QWidget):
         QMessageBox.information(self, "Information", "task summit succefully.")
         for row in range(self.queue_table.rowCount()):
             self.execute(row)
-        
+        self.batch_executed.emit()
+    def show_message_box(self):
+        QMessageBox.information(self, "Information", "All tasks have been executed.")
 app = QApplication(sys.argv)
 
 demo = AppDemo()
