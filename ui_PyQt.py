@@ -1,7 +1,7 @@
-from PyQt5.QtWidgets import QMessageBox,QApplication, QHeaderView,QWidget, QVBoxLayout, QPushButton, QComboBox, QLabel, QLineEdit, QFileDialog,QTableWidget,QTableWidgetItem
-from PyQt5.QtCore import QThread, QObject,QRunnable,pyqtSignal,Qt,QThreadPool
+from PyQt5.QtWidgets import QTextEdit, QMessageBox,QApplication, QHeaderView,QWidget, QVBoxLayout, QPushButton, QComboBox, QLabel, QLineEdit, QFileDialog,QTableWidget,QTableWidgetItem
+from PyQt5.QtCore import QThread,pyqtSignal,Qt,QThreadPool
 import os
-from PyQt5.QtGui import QMovie
+from PyQt5.QtGui import QMovie,QColor
 from yt_transcript import main
 import sys
 from logger import SignalHandler, setup_logger
@@ -33,6 +33,8 @@ class Args:
 class Worker(QThread):
     log_message = pyqtSignal(str)
     all_tasks_finished = pyqtSignal() 
+    start_with_row = pyqtSignal(int)  # New signal with parameter
+    finished_with_row = pyqtSignal(int)  # New signal with parameter
 
     def __init__(self):
         super().__init__()
@@ -41,14 +43,16 @@ class Worker(QThread):
         self.args_list = []  # Change args to a list of args
 
     def run(self):
-        for args in self.args_list:  # Iterate over all args in the list
+        for i, args in enumerate(self.args_list):  # Iterate over all args in the list
+            self.start_with_row.emit(i)  # Emit signal with row number
             main(args)
-            self.finished.emit()
-        if not self.isRunning():  # Check if there are no more tasks running
-            self.all_tasks_finished.emit()  
+            self.finished_with_row.emit(i)  # Emit signal with row number
+        self.all_tasks_finished.emit()  
 
     def set_args(self, args):
         self.args_list.append(args)  # Add new args to the list
+    def re_init_args(self):
+        self.args_list = []  # Add new args to the list
 
     def __del__(self):
         self.logger.removeHandler(self.handler)
@@ -58,14 +62,22 @@ class AppDemo(QWidget):
         super().__init__()
 
         self.worker = Worker()
-        self.worker.finished.connect(self.show_finished_message) 
+        self.worker.start_with_row.connect(self.show_start_message_with_row)  # Connect new signal
+        self.worker.finished_with_row.connect(self.show_finished_message_with_row)  # Connect new signal
         self.worker.log_message.connect(self.add_log_message_to_table)  # Connect log_message signal to add_log_message_to_table method
         self.worker.all_tasks_finished.connect(self.show_all_tasks_finished_message) 
 
         self.loading_label = QLabel(self)
+        window_width = self.width()
+        window_height = self.height()
+        label_width = int(window_width * 0.05)  # 50% of the window width
+        label_height = int(window_height * 0.05)  # 50% of the window height
+        label_x = int((window_width) *0.07)  # Center the label horizontally
+        label_y = int((window_height)*0.01 ) # Center the label vertically
         self.loading_movie = QMovie(os.path.join('.','resources','loading.webp'))
+        self.loading_label.setGeometry(label_x, label_y, label_width, label_height)
         self.loading_label.setMovie(self.loading_movie)
-
+        self.loading_label.setScaledContents(True)  #
         self.layout = QVBoxLayout()
 
         self.link_entry = QLineEdit()
@@ -150,31 +162,47 @@ class AppDemo(QWidget):
         self.layout.addWidget(self.submit_button)
         
 
-        self.queue_table = QTableWidget(0, 13)  # 12 columns for each parameter and execute button
-        
+
+        self.queue_table = QTableWidget(0, 12)  # 11 columns for each parameter and regist button
+
         self.queue_table.setHorizontalHeaderLabels([
-            'Status', 'Log Message','Link', 'Prompt','LLM format', 'Language', 'Whisper Model Size', 'Model Name', 'Timestamp Content', 'Pic Embed', 'TTS Create', 'Output Folder','Delete'
+            'Status', 'Link', 'Prompt','LLM format', 'Language', 'Whisper Model Size', 'Model Name', 'Timestamp Content', 'Pic Embed', 'TTS Create', 'Output Folder','Delete'
         ])
         self.layout.addWidget(self.queue_table)
-        
-        self.batch_execute_button = QPushButton('Execute All')
-        self.batch_execute_button.clicked.connect(self.batch_execute)
-        self.layout.addWidget(self.batch_execute_button)
-        
+
+        self.batch_regist_button = QPushButton('Execute All')
+        self.batch_regist_button.clicked.connect(self.init_regist)
+        self.batch_regist_button.clicked.connect(self.batch_regist)
+        self.layout.addWidget(self.batch_regist_button)
+
+        # Add a new QLabel and QTextEdit for the log message
+        self.layout.addWidget(QLabel('Log Message'))
+        self.log_message_entry = QTextEdit()
+        self.layout.addWidget(self.log_message_entry)
+
         self.setLayout(self.layout)
         
 
     def select_output_dir(self):
         output_dir = QFileDialog.getExistingDirectory(self, 'Select Output Directory')
         self.output_dir_entry.setText(output_dir)
-    def show_finished_message(self):
-        # Update the status of the last row to 'Finished'
+    def show_start_message_with_row(self,row):
+        self.queue_table.setItem(row, 0, QTableWidgetItem('Running...'))
+    def show_finished_message_with_row(self,row):
+        item = QTableWidgetItem('Finished')
+        item.setBackground(QColor(144, 238, 144))  # Light green
+        self.queue_table.setItem(row, 0, item)
+    def init_regist(self):
+        # Set the first column of each row to "Pending"
+        for row in range(self.queue_table.rowCount()):
+            item = QTableWidgetItem('Pending')
+            self.queue_table.setItem(row, 0, item)
+    
+        # Clear the args_list parameter of self.worker
+        self.worker.re_init_args()
+    def show_all_tasks_finished_message(self):
         self.loading_movie.stop()
         self.loading_label.hide()
-        last_row = self.queue_table.rowCount() - 1
-        self.queue_table.setItem(last_row, 0, QTableWidgetItem('Finished'))
-
-    def show_all_tasks_finished_message(self):
         QMessageBox.information(self, "Information", "task completed")
 
     def submit(self):
@@ -194,28 +222,22 @@ class AppDemo(QWidget):
         row = self.queue_table.rowCount()
         self.queue_table.insertRow(row)
         self.queue_table.setItem(row, 0, QTableWidgetItem('Pending'))
-        self.queue_table.setItem(row, 1, QTableWidgetItem('Pending'))
-        self.queue_table.setItem(row, 2, QTableWidgetItem(link))
-        self.queue_table.setItem(row, 3, QTableWidgetItem(prompt))
-        self.queue_table.setItem(row, 4, QTableWidgetItem(llm_format))
-        self.queue_table.setItem(row, 5, QTableWidgetItem(language))
-        self.queue_table.setItem(row, 6, QTableWidgetItem(whisper_model_size))
-        self.queue_table.setItem(row, 7, QTableWidgetItem(model_name))
-        self.queue_table.setItem(row, 8, QTableWidgetItem(timestamp_content))
-        self.queue_table.setItem(row, 9, QTableWidgetItem(pic_embed))
-        self.queue_table.setItem(row, 10, QTableWidgetItem(TTS_create))
-        self.queue_table.setItem(row, 11, QTableWidgetItem(output_dir))
-        self.queue_table.setCellWidget(row, 12, delete_button)
+        self.queue_table.setItem(row, 1, QTableWidgetItem(link))
+        self.queue_table.setItem(row, 2, QTableWidgetItem(prompt))
+        self.queue_table.setItem(row, 3, QTableWidgetItem(llm_format))
+        self.queue_table.setItem(row, 4, QTableWidgetItem(language))
+        self.queue_table.setItem(row, 5, QTableWidgetItem(whisper_model_size))
+        self.queue_table.setItem(row, 6, QTableWidgetItem(model_name))
+        self.queue_table.setItem(row, 7, QTableWidgetItem(timestamp_content))
+        self.queue_table.setItem(row, 8, QTableWidgetItem(pic_embed))
+        self.queue_table.setItem(row, 9, QTableWidgetItem(TTS_create))
+        self.queue_table.setItem(row, 10, QTableWidgetItem(output_dir))
+        self.queue_table.setCellWidget(row, 11, delete_button)
         self.queue_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
 
-    def add_log_message_to_table(self, message):
-        row = self.queue_table.rowCount() - 1  # Get the last row
-    
+    def add_log_message_to_table(self, messages):
         # Update status in the first column
-        self.queue_table.item(row, 0).setText('Running')
-    
-        # Update log message in the second column
-        self.queue_table.item(row, 1).setText(message)
+        self.log_message_entry.setText(messages)
     
     def delete_row(self):
         button = self.sender()
@@ -224,16 +246,16 @@ class AppDemo(QWidget):
             self.queue_table.removeRow(row)
 
     def regist(self, row):
-        link = self.queue_table.item(row, 2).text()
-        prompt = self.queue_table.item(row, 3).text()
-        llm_format = self.queue_table.item(row, 4).text()
-        language = self.queue_table.item(row, 5).text()
-        whisper_model_size = self.queue_table.item(row, 6).text()
-        model_name = self.queue_table.item(row, 7).text()
-        timestamp_content = self.queue_table.item(row, 8).text()
-        pic_embed = self.queue_table.item(row, 9).text()
-        TTS_create = self.queue_table.item(row, 10).text()
-        output_dir = self.queue_table.item(row, 11).text()
+        link = self.queue_table.item(row, 1).text()
+        prompt = self.queue_table.item(row, 2).text()
+        llm_format = self.queue_table.item(row, 3).text()
+        language = self.queue_table.item(row, 4).text()
+        whisper_model_size = self.queue_table.item(row, 5).text()
+        model_name = self.queue_table.item(row, 6).text()
+        timestamp_content = self.queue_table.item(row, 7).text()
+        pic_embed = self.queue_table.item(row, 8).text()
+        TTS_create = self.queue_table.item(row, 9).text()
+        output_dir = self.queue_table.item(row, 10).text()
         args = Args(
             link,
             prompt,
@@ -250,7 +272,7 @@ class AppDemo(QWidget):
         self.loading_movie.start()
         self.loading_label.show()
     def row_regist(self, row):
-        self.execute(row)
+        self.regist(row)
        
 
     def batch_regist(self):
