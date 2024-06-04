@@ -1,5 +1,5 @@
 from PyQt5.QtWidgets import QMessageBox,QApplication, QHeaderView,QWidget, QVBoxLayout, QPushButton, QComboBox, QLabel, QLineEdit, QFileDialog,QTableWidget,QTableWidgetItem
-from PyQt5.QtCore import QThread, pyqtSignal,Qt
+from PyQt5.QtCore import QThread, QObject,QRunnable,pyqtSignal,Qt,QThreadPool
 import os
 from PyQt5.QtGui import QMovie
 from yt_transcript import main
@@ -10,6 +10,7 @@ class Args:
     self,
     link,
     prompt,
+    llm_format,
     language,
     whisper_model_size,
     model_name,
@@ -20,6 +21,7 @@ class Args:
     ):
         self.link = link
         self.prompt = prompt
+        self.llm_format = llm_format
         self.language = language
         self.whisper_model_size = whisper_model_size
         self.model_name = model_name
@@ -56,7 +58,7 @@ class AppDemo(QWidget):
         self.worker.all_tasks_finished.connect(self.show_all_tasks_finished_message) 
 
         self.loading_label = QLabel(self)
-        self.loading_movie = QMovie("loading.gif")
+        self.loading_movie = QMovie(os.path.join('.','resources','loading.webp'))
         self.loading_label.setMovie(self.loading_movie)
 
         self.layout = QVBoxLayout()
@@ -72,10 +74,19 @@ class AppDemo(QWidget):
         self.layout.addWidget(QLabel('Prompt'))
         self.layout.addWidget(self.prompt_combobox)
         
+        self.llm_format_options = ["detail","summary","both"]
+        self.llm_format_combobox = QComboBox()
+        self.llm_format_combobox.addItems(self.llm_format_options)
+        index = self.llm_format_combobox.findText('summary', Qt.MatchFixedString)
+        if index >= 0:
+            self.llm_format_combobox.setCurrentIndex(index)
+        self.layout.addWidget(QLabel('LLM Format'))
+        self.layout.addWidget(self.llm_format_combobox)
+
         self.language_options = ["en", "zh"]
         self.language_combobox = QComboBox()
         self.language_combobox.addItems(self.language_options)
-        self.layout.addWidget(QLabel('Language'))
+        self.layout.addWidget(QLabel('Output Language'))
         self.layout.addWidget(self.language_combobox)
 
         self.whisper_model_size_options = ["small", "medium", "large"]
@@ -107,6 +118,9 @@ class AppDemo(QWidget):
         self.pic_embed_combobox = QComboBox()
         self.pic_embed_combobox.addItems(self.pic_embed_options)
         self.layout.addWidget(QLabel('Picture Embed'))
+        index = self.pic_embed_combobox.findText('False', Qt.MatchFixedString)
+        if index >= 0:
+            self.pic_embed_combobox.setCurrentIndex(index)
         self.layout.addWidget(self.pic_embed_combobox)
 
         self.TTS_create_options = ["True", "False"]
@@ -131,10 +145,10 @@ class AppDemo(QWidget):
         self.layout.addWidget(self.submit_button)
         
 
-        self.queue_table = QTableWidget(0, 12)  # 12 columns for each parameter and execute button
+        self.queue_table = QTableWidget(0, 13)  # 12 columns for each parameter and execute button
         
         self.queue_table.setHorizontalHeaderLabels([
-            'Status', 'Log Message','Link', 'Prompt', 'Language', 'Whisper Model Size', 'Model Name', 'Timestamp Content', 'Pic Embed', 'TTS Create', 'Output Folder','Delete'
+            'Status', 'Log Message','Link', 'Prompt','LLM format', 'Language', 'Whisper Model Size', 'Model Name', 'Timestamp Content', 'Pic Embed', 'TTS Create', 'Output Folder','Delete'
         ])
         self.layout.addWidget(self.queue_table)
         
@@ -161,6 +175,7 @@ class AppDemo(QWidget):
     def submit(self):
         link = self.link_entry.text() or ""
         prompt = self.prompt_combobox.currentText() or "summary the following content"
+        llm_format = self.llm_format_combobox.currentText() or "detail"
         language = self.language_combobox.currentText()
         whisper_model_size = self.whisper_model_size_combobox.currentText()
         model_name = self.model_name_combobox.currentText() or "auto"
@@ -177,14 +192,15 @@ class AppDemo(QWidget):
         self.queue_table.setItem(row, 1, QTableWidgetItem('Pending'))
         self.queue_table.setItem(row, 2, QTableWidgetItem(link))
         self.queue_table.setItem(row, 3, QTableWidgetItem(prompt))
-        self.queue_table.setItem(row, 4, QTableWidgetItem(language))
-        self.queue_table.setItem(row, 5, QTableWidgetItem(whisper_model_size))
-        self.queue_table.setItem(row, 6, QTableWidgetItem(model_name))
-        self.queue_table.setItem(row, 7, QTableWidgetItem(timestamp_content))
-        self.queue_table.setItem(row, 8, QTableWidgetItem(pic_embed))
-        self.queue_table.setItem(row, 9, QTableWidgetItem(TTS_create))
-        self.queue_table.setItem(row, 10, QTableWidgetItem(output_dir))
-        self.queue_table.setCellWidget(row, 11, delete_button)
+        self.queue_table.setItem(row, 4, QTableWidgetItem(llm_format))
+        self.queue_table.setItem(row, 5, QTableWidgetItem(language))
+        self.queue_table.setItem(row, 6, QTableWidgetItem(whisper_model_size))
+        self.queue_table.setItem(row, 7, QTableWidgetItem(model_name))
+        self.queue_table.setItem(row, 8, QTableWidgetItem(timestamp_content))
+        self.queue_table.setItem(row, 9, QTableWidgetItem(pic_embed))
+        self.queue_table.setItem(row, 10, QTableWidgetItem(TTS_create))
+        self.queue_table.setItem(row, 11, QTableWidgetItem(output_dir))
+        self.queue_table.setCellWidget(row, 12, delete_button)
         self.queue_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
 
     def add_log_message_to_table(self, message):
@@ -196,10 +212,6 @@ class AppDemo(QWidget):
         # Update log message in the second column
         self.queue_table.item(row, 1).setText(message)
     
-    def show_finished_message(self):
-        # Update the status of the last row to 'Finished'
-        last_row = self.queue_table.rowCount() - 1
-        self.queue_table.item(last_row, 0).setText('Finished')
     def delete_row(self):
         button = self.sender()
         if button:
@@ -209,17 +221,18 @@ class AppDemo(QWidget):
     def execute(self, row):
         link = self.queue_table.item(row, 2).text()
         prompt = self.queue_table.item(row, 3).text()
-        language = self.queue_table.item(row, 4).text()
-        whisper_model_size = self.queue_table.item(row, 5).text()
-        model_name = self.queue_table.item(row, 6).text()
-        timestamp_content = self.queue_table.item(row, 7).text()
-        pic_embed = self.queue_table.item(row, 8).text()
-        TTS_create = self.queue_table.item(row, 9).text()
-        output_dir = self.queue_table.item(row, 10).text()
-    
+        llm_format = self.queue_table.item(row, 4).text()
+        language = self.queue_table.item(row, 5).text()
+        whisper_model_size = self.queue_table.item(row, 6).text()
+        model_name = self.queue_table.item(row, 7).text()
+        timestamp_content = self.queue_table.item(row, 8).text()
+        pic_embed = self.queue_table.item(row, 9).text()
+        TTS_create = self.queue_table.item(row, 10).text()
+        output_dir = self.queue_table.item(row, 11).text()
         args = Args(
             link,
             prompt,
+            llm_format,
             language,
             whisper_model_size,
             model_name,
@@ -228,9 +241,7 @@ class AppDemo(QWidget):
             pic_embed, 
             TTS_create
         )
-    
         self.worker.set_args(args)
-        
         self.loading_movie.start()
         self.loading_label.show()
         self.worker.start()
@@ -239,7 +250,7 @@ class AppDemo(QWidget):
        
 
     def batch_execute(self):
-        QMessageBox.information(self, "Information", "task summit succefully.")
+        QMessageBox.information(self, "Information", "Task submission successful.")
         for row in range(self.queue_table.rowCount()):
             self.execute(row)
         

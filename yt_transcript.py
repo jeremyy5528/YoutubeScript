@@ -195,10 +195,11 @@ def summary_video_from_link(
     ):
         vtt_file = os.path.join(audiopath, f"{pure_filename}.{video_language}.vtt")
         if os.path.exists(vtt_file):
-            os.rename(
-                vtt_file,
-                os.path.join(text_output_dir, f"{pure_filename}.vtt"),
-            )
+            if not os.path.exists(os.path.join(text_output_dir, f"{pure_filename}.vtt")):
+                os.rename(
+                    vtt_file,
+                    os.path.join(text_output_dir, f"{pure_filename}.vtt"),
+                )
 
         vtt_file = os.path.join(text_output_dir, f"{pure_filename}.vtt")
         if not os.path.exists(vtt_file):
@@ -238,8 +239,12 @@ def summary_video_from_link(
     logger.info(f"video name:{pure_filename}")
     video_language = get_video_lang(link, pure_filename)
     logger.info(f"video language:{video_language}")
+    if args.pic_embed == "True":
+        res_option = ''
+    if args.pic_embed == "False":
+        res_option = '-S "+size,+br"'
 
-    download_video_cmd = f'yt-dlp {link} -o "{audiopath}/%(title)s.%(ext)s" --extract-audio --audio-format mp3 --keep-video --write-subs  --sub-format vtt --sub-langs {video_language}'
+    download_video_cmd = f'yt-dlp {link} -o "{audiopath}/%(title)s.%(ext)s" {res_option} --extract-audio --audio-format mp3 --keep-video --write-subs  --sub-format vtt --sub-langs {video_language}'
     subprocess.run(download_video_cmd, shell=True)
 
     download_subtitle_file(audiopath, pure_filename, video_language, text_output_dir)
@@ -346,8 +351,12 @@ def llm_summary(args, link, integrate_text_output_dir, pure_filename, chunks):
     else:
         logger.error(f"Request failed with status code {integrate_response.status_code}: {integrate_response.text}")    
     integrate_response_text = integrate_response.json()["response"]
-    # response_text = integrate_response_text + "\n =========== \n" + combined_responses
-    response_text = integrate_response_text + "\n =========== \n" + combined_responses
+    if args.llm_format == 'summary':
+        response_text = integrate_response_text
+    if args.llm_format == 'detail':
+        response_text = combined_responses
+    if args.llm_format == 'both':
+        response_text = integrate_response_text + "\n =========== \n" + combined_responses
 
     integrate_text_format(
         pure_filename, link, args, integrate_text_output_dir, response_text
@@ -401,7 +410,10 @@ def parse_arguments():
         "--pic_embed", type=str, default="True", help="output directory"
     )
     parser.add_argument(
-        "--TTS_create", type=str, default="True", help="output directory"
+        "--TTS_create", type=str, default="True", help="TTS create"
+    )
+    parser.add_argument(
+        "--llm_format", type=str, default="detail", help="LLM output format"
     )
 
     return parser.parse_args()
