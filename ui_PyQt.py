@@ -33,18 +33,23 @@ class Args:
 class Worker(QThread):
     log_message = pyqtSignal(str)
     all_tasks_finished = pyqtSignal() 
+
     def __init__(self):
         super().__init__()
         self.handler = SignalHandler(self.log_message)
         self.logger = setup_logger(self.handler)
+        self.args_list = []  # Change args to a list of args
 
     def run(self):
-        main(self.args)
-        self.finished.emit()
+        for args in self.args_list:  # Iterate over all args in the list
+            main(args)
+            self.finished.emit()
         if not self.isRunning():  # Check if there are no more tasks running
             self.all_tasks_finished.emit()  
+
     def set_args(self, args):
-        self.args = args   
+        self.args_list.append(args)  # Add new args to the list
+
     def __del__(self):
         self.logger.removeHandler(self.handler)
 
@@ -218,7 +223,7 @@ class AppDemo(QWidget):
             row = self.queue_table.indexAt(button.pos()).row()
             self.queue_table.removeRow(row)
 
-    def execute(self, row):
+    def regist(self, row):
         link = self.queue_table.item(row, 2).text()
         prompt = self.queue_table.item(row, 3).text()
         llm_format = self.queue_table.item(row, 4).text()
@@ -244,15 +249,15 @@ class AppDemo(QWidget):
         self.worker.set_args(args)
         self.loading_movie.start()
         self.loading_label.show()
-        self.worker.start()
-    def row_execute(self, row):
+    def row_regist(self, row):
         self.execute(row)
        
 
-    def batch_execute(self):
+    def batch_regist(self):
         QMessageBox.information(self, "Information", "Task submission successful.")
         for row in range(self.queue_table.rowCount()):
-            self.execute(row)
+            self.regist(row)
+        self.worker.start()
         
 app = QApplication(sys.argv)
 
