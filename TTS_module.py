@@ -58,6 +58,8 @@ def generate_audio_openvoice(text, output_dir, pure_filename, language, speaker=
     base_speaker_tts.load_ckpt(base_speaker_checkpoint)
     src_path = os.path.join(output_dir, f'{pure_filename}.wav')
     base_speaker_tts.tts(text, src_path, speaker=speaker, language=language_full, speed=1.0)
+    AudioSegment.from_wav(src_path).export(os.path.join(output_dir, f'{pure_filename}.mp3'), format="mp3")
+    os.remove(src_path)  
     
     if mimic_tone_reference == False:
         reference_speaker = os.path.join(script_dir, 'resources', 'ZH_MIRU.mp3')  # This is the voice you want to clone
