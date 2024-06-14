@@ -22,9 +22,11 @@ def setup_logger(signal_handler=None):
     file_handler.setLevel(logging.DEBUG)
 
     # 创建一个handler对象来将日志信息输出到命令行
-    stream_handler = logging.StreamHandler()
-    stream_handler.setLevel(logging.DEBUG)
-
+    # stream_handler = logging.StreamHandler()
+    # stream_handler.setLevel(logging.DEBUG)
+    # 移除终端处理器（如果有）
+    if logger.hasHandlers():
+        logger.handlers.clear()
     # 如果提供了SignalHandler，将其添加到logger
     if signal_handler is not None:
         logger.addHandler(signal_handler)
@@ -36,11 +38,11 @@ def setup_logger(signal_handler=None):
 
     # 将formatter设置到handler对象中
     file_handler.setFormatter(formatter)
-    stream_handler.setFormatter(formatter)
+    # stream_handler.setFormatter(formatter)
 
     # 将handler对象添加到logger中
     logger.addHandler(file_handler)
-    logger.addHandler(stream_handler)
+    # logger.addHandler(stream_handler)
 
     return logger
 logger = setup_logger()
