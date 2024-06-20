@@ -1,0 +1,2 @@
+6/19----
+Updated Install.bat to allow for better compatibility.
