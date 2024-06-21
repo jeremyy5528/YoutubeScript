@@ -3,7 +3,7 @@ requests
 langdetect
 TTS
 yt-dlp
-webvtt
+webvtt-py
 python-docx
 openai-whisper
 ollama
@@ -19,3 +19,6 @@ cn2an
 six
 webvtt-py
 opencv-python
+PyQt5
+git+https://github.com/jeremyy5528/OpenVoice.git
+torchvision
