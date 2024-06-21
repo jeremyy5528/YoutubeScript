@@ -1,4 +1,4 @@
-pip3 install -r requirements.txt
+python -m pip install -r requirements.txt
 
 docker compose up
 docker exec ollama ollama pull llama3:8b
