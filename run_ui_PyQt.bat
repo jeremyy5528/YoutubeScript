@@ -1,3 +1,3 @@
 @echo off
 
-py  "C:\Users\Lab315\Desktop\YoutubeScript\ui_PyQt.py"
+py "%~dp0\ui_PyQt.py"
